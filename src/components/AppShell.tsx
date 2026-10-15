@@ -12,7 +12,8 @@ function Conteudo({ children }: { children: ReactNode }) {
   if (carregando) {
     return (
       <div className="tela-carregando" aria-busy="true">
-        <div className="toldo-bando giro" aria-hidden />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.webp" alt="RDN Soldas" className="logo-carregando" />
         <span>Abrindo…</span>
       </div>
     );

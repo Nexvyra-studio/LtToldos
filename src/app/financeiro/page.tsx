@@ -17,7 +17,7 @@ const nomeLancamento = (l: Lancamento) => l.descricao || `Compra de ${formatData
 
 export default function FinanceiroPage() {
   const toast = useToast();
-  const { modoLocal, sair, usuario } = useAuth();
+  const { sair, usuario } = useAuth();
   const { itens, carregando, erro } = useLancamentos();
 
   const [periodo, setPeriodo] = useState<PeriodoId>("mes");
@@ -148,11 +148,9 @@ export default function FinanceiroPage() {
         titulo="Financeiro"
         subtitulo="Compras e pagamentos"
         direita={
-          !modoLocal && (
-            <button type="button" className="icone-btn claro" onClick={sair} aria-label={`Sair (${usuario?.email})`}>
-              <LuLogOut />
-            </button>
-          )
+          <button type="button" className="icone-btn claro" onClick={sair} aria-label={`Sair (${usuario?.email})`} title="Sair">
+            <LuLogOut />
+          </button>
         }
       />
 

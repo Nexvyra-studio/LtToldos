@@ -1,13 +1,20 @@
 /**
- * Toldo Cortina
+ * Toldo Cortina e Toldo Fixo (Casca)
  *
  * Regras da empresa:
  *  - Largura de corte = medida + 10 cm (5 cm de cada lado) + 1 cm por emenda
- *  - Altura de corte  = medida + 25 cm (bandô) ou + 15 cm (canhão)
+ *  - Altura de corte  = Cortina: medida + 25 cm (bandô) ou + 15 cm (canhão)
+ *                       Casca (com ou sem bandô): medida da ferragem por cima da curva + 10 cm
+ *                       (no Casca com bandô, a medida já inclui o bandô)
  *  - Lona em rolo de 1,40 m: os gomos são emendados lado a lado na largura
  */
 
 export type Acabamento = "bando" | "canhao";
+export type Modelo = "cortina" | "casca" | "casca-bando" | "fixo-lateral";
+/** Laterais do Fixo com lateral: largura + 5 sempre; altura + 5 (sem bandô) ou + 30 (com bandô) */
+export const LATERAL_LARGURA = 5;
+export const LATERAL_ALTURA = { semBando: 5, comBando: 30 };
+export const ACRESCIMO_CASCA = 10;
 
 export const ROLO_LONA_CM = 140;
 export const SOBRA_LATERAL_CM = 10;
@@ -25,10 +32,29 @@ export interface EntradaCortina {
   largura: number; // cm
   altura: number; // cm
   acabamento: Acabamento;
+  /** padrão: cortina */
+  modelo?: Modelo;
   quantidade: number;
   rolo?: number; // cm, padrão 140
   /** pedaço de lona que sobrou de outro serviço (opcional), em cm */
   retalho?: { largura: number; comprimento?: number } | null;
+  /** Fixo com lateral: com ou sem bandô */
+  comBando?: boolean;
+  /** Fixo com lateral: medidas da ferragem da lateral (avanço e altura na parede), em cm */
+  lateral?: { largura: number; altura: number } | null;
+}
+
+export interface ResultadoLateral {
+  larguraCorte: number;
+  alturaCorte: number;
+  gomos: number;
+  emendas: number;
+  larguraGomos: number[];
+  retalho: number;
+  /** metros de lona de UMA lateral */
+  metrosPorLateral: number;
+  /** metros das 2 laterais × quantidade de toldos */
+  metrosTotal: number;
 }
 
 export type UsoRetalho =
@@ -56,6 +82,10 @@ export interface ResultadoCortina {
   usoRetalho: UsoRetalho | null;
   /** área do toldo pronto (m²), para 1 toldo */
   areaCorte: number;
+  /** Fixo com lateral: as 2 laterais (null nos outros tipos) */
+  laterais?: ResultadoLateral | null;
+  /** lona total do rolo novo: casca + laterais */
+  metrosGeral?: number;
 }
 
 export function calcularCortina(e: EntradaCortina): ResultadoCortina | null {
@@ -86,7 +116,7 @@ export function calcularCortina(e: EntradaCortina): ResultadoCortina | null {
   }
   const retalho = round1(gomos * rolo - larguraCorte);
 
-  const alturaCorte = e.altura + ACRESCIMO_ALTURA[e.acabamento];
+  const alturaCorte = e.altura + acrescimoAltura(e);
   const metrosPorToldo = round2((gomos * alturaCorte) / 100);
   const metrosTotal = round2(metrosPorToldo * quantidade);
 
@@ -117,6 +147,27 @@ export function calcularCortina(e: EntradaCortina): ResultadoCortina | null {
   // um retalho atende só um toldo
   const metrosRolo = usoRetalho?.usado ? round2(metrosTotal - alturaCorte / 100) : metrosTotal;
 
+  // Fixo com lateral: 2 laterais em gomos, recortadas depois no formato da ferragem
+  let laterais: ResultadoLateral | null = null;
+  if (e.modelo === "fixo-lateral" && e.lateral && e.lateral.largura > 0 && e.lateral.altura > 0) {
+    const lc = round1(e.lateral.largura + LATERAL_LARGURA);
+    const ac = round1(e.lateral.altura + (e.comBando ? LATERAL_ALTURA.comBando : LATERAL_ALTURA.semBando));
+    const g = Math.max(1, Math.ceil(lc / rolo));
+    const lgs: number[] = [];
+    for (let i = 0; i < g; i++) lgs.push(Math.min(rolo, round1(lc - i * rolo)));
+    const porLateral = round2((g * ac) / 100);
+    laterais = {
+      larguraCorte: lc,
+      alturaCorte: ac,
+      gomos: g,
+      emendas: g - 1,
+      larguraGomos: lgs,
+      retalho: round1(g * rolo - lc),
+      metrosPorLateral: porLateral,
+      metrosTotal: round2(porLateral * 2 * quantidade),
+    };
+  }
+
   return {
     rolo,
     larguraCorte: round1(larguraCorte),
@@ -130,7 +181,14 @@ export function calcularCortina(e: EntradaCortina): ResultadoCortina | null {
     metrosRolo,
     usoRetalho,
     areaCorte: round2((larguraCorte * alturaCorte) / 10000),
+    laterais,
+    metrosGeral: round2(metrosRolo + (laterais?.metrosTotal ?? 0)),
   };
+}
+
+/** quanto soma na altura: bandô/canhão no Cortina, 10 cm fixos na Casca */
+export function acrescimoAltura(e: Pick<EntradaCortina, "modelo" | "acabamento">) {
+  return e.modelo && e.modelo !== "cortina" ? ACRESCIMO_CASCA : ACRESCIMO_ALTURA[e.acabamento];
 }
 
 function round1(n: number) {

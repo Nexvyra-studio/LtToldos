@@ -21,18 +21,18 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "Toldos",
+  title: "RDN Soldas | Toldos",
   description: "Cálculo de lona para toldos e controle de compras",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg" },
-  appleWebApp: { capable: true, title: "Toldos", statusBarStyle: "default" },
+  icons: { apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "RDN Toldos", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#1F4E8C",
+  themeColor: "#151b23",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

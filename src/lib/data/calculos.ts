@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { EntradaCortina, ResultadoCortina } from "../calc/cortina";
+import type { EntradaCortina, Modelo, ResultadoCortina } from "../calc/cortina";
 import { criarRepo } from "./repo";
 
 export interface CalculoSalvo {
   id: string;
-  tipo: "cortina";
+  tipo: Modelo;
   cliente: string;
   entrada: EntradaCortina;
   resultado: ResultadoCortina;

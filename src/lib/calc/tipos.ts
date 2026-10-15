@@ -26,17 +26,19 @@ export const TIPOS_TOLDO: TipoToldo[] = [
   {
     id: "fixo-casca",
     nome: "Fixo (casca)",
-    resumo: "Estrutura fixa, sem bandô",
+    resumo: "Estrutura fixa curva, sem bandô",
     regras: [
       "Largura + 10 cm + 1 cm por emenda",
-      "Altura + 10 cm",
+      "Altura (ferragem por cima da curva) + 10 cm",
     ],
+    href: "/toldos/casca",
   },
   {
     id: "fixo-casca-bando",
     nome: "Fixo (casca) com bandô",
-    resumo: "Estrutura fixa com bandô",
-    regras: ["Largura + 10 cm + 1 cm por emenda", "Altura + 10 cm"],
+    resumo: "Estrutura fixa curva, bandô na frente",
+    regras: ["Largura + 10 cm + 1 cm por emenda", "Altura (ferragem + bandô) + 10 cm"],
+    href: "/toldos/casca-bando",
   },
   {
     id: "fixo-lateral",
@@ -47,5 +49,6 @@ export const TIPOS_TOLDO: TipoToldo[] = [
       "Lateral: altura + 5 cm (sem bandô) ou + 30 cm (com bandô)",
       "Lateral: largura sempre + 5 cm",
     ],
+    href: "/toldos/fixo-lateral",
   },
 ];

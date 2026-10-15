@@ -6,7 +6,7 @@ import { TIPOS_TOLDO } from "@/lib/calc/tipos";
 export default function TiposPage() {
   return (
     <>
-      <Cabecalho titulo="Qual toldo?" subtitulo="Escolha o tipo e digite só as medidas" />
+      <Cabecalho titulo="Qual toldo?" subtitulo="Escolha o tipo e digite só as medidas" marcaGrande />
 
       <ul className="lista-tipos">
         {TIPOS_TOLDO.map((t) => {

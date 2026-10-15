@@ -1,9 +1,10 @@
-import { ACRESCIMO_ALTURA, NOME_ACABAMENTO, type Acabamento, type ResultadoCortina } from "@/lib/calc/cortina";
+import type { ResultadoCortina } from "@/lib/calc/cortina";
 import { formatNum } from "@/lib/format";
 
 interface Props {
   r: ResultadoCortina;
-  acabamento: Acabamento;
+  /** faixa do bandô/canhão desenhada embaixo; null = sem faixa (Casca) */
+  faixa: { nome: string; cm: number } | null;
 }
 
 const LARG_MAX = 270;
@@ -12,13 +13,13 @@ const MARGEM_ESQ = 40;
 const MARGEM_TOPO = 30;
 
 /** Plano de corte: gomos de 1,40 m lado a lado, emendas, sobra do rolo e faixa do acabamento */
-export function DesenhoCortina({ r, acabamento }: Props) {
+export function DesenhoCortina({ r, faixa }: Props) {
   const larguraRolos = r.gomos * (r.rolo ?? 140);
   const escala = Math.min(LARG_MAX / larguraRolos, ALT_MAX / r.alturaCorte);
   const W = r.larguraCorte * escala;
   const H = r.alturaCorte * escala;
   const Wtotal = larguraRolos * escala;
-  const hAcab = ACRESCIMO_ALTURA[acabamento] * escala;
+  const hAcab = faixa ? faixa.cm * escala : 0;
   const uso = r.usoRetalho;
   const doRetalho = (i: number) => !!uso?.usado && uso.gomo === i;
   // com retalho usado, a sobra mostrada é a do retalho (não do rolo novo)
@@ -127,10 +128,10 @@ export function DesenhoCortina({ r, acabamento }: Props) {
       ))}
 
       {/* faixa do bandô / canhão */}
-      <rect x={MARGEM_ESQ} y={MARGEM_TOPO + H - hAcab} width={W} height={hAcab} className="d-acab" />
-      {hAcab > 11 && (
+      {faixa && <rect x={MARGEM_ESQ} y={MARGEM_TOPO + H - hAcab} width={W} height={hAcab} className="d-acab" />}
+      {faixa && hAcab > 11 && (
         <text x={MARGEM_ESQ + W / 2} y={MARGEM_TOPO + H - hAcab / 2 + 4} textAnchor="middle" className="d-texto-acab">
-          {NOME_ACABAMENTO[acabamento]} +{ACRESCIMO_ALTURA[acabamento]}
+          {faixa.nome} +{faixa.cm}
         </text>
       )}
 
