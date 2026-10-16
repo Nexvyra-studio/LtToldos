@@ -91,7 +91,10 @@ export function Login() {
           </button>
         </form>
 
-        <p className="login-rodape">Acesso exclusivo</p>
+        <p className="login-rodape">
+          <span className={`login-status${modoLocal ? "" : " on"}`} aria-hidden />
+          {modoLocal ? "Modo de teste (sem banco)" : "Conectado ao banco de dados"}
+        </p>
       </main>
     </div>
   );

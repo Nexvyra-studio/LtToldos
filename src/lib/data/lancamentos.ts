@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { COLECOES, mensagemErroBanco } from "../firebase";
 import { criarRepo } from "./repo";
 
 export interface Lancamento {
@@ -17,7 +18,7 @@ export interface Lancamento {
   criadoPor?: string | null;
 }
 
-export const lancamentosRepo = criarRepo<Lancamento>("lancamentos", (a, b) =>
+export const lancamentosRepo = criarRepo<Lancamento>(COLECOES.lancamentos, (a, b) =>
   a.data === b.data ? b.criadoEm - a.criadoEm : a.data < b.data ? 1 : -1,
 );
 
@@ -34,7 +35,7 @@ export function useLancamentos() {
           setCarregando(false);
         },
         (e) => {
-          setErro(e.message);
+          setErro(mensagemErroBanco(e));
           setCarregando(false);
         },
       ),

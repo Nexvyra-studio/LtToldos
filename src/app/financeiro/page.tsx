@@ -242,7 +242,7 @@ export default function FinanceiroPage() {
         </div>
       </section>
 
-      {erro && <p className="erro caixa" role="alert">Não foi possível carregar as compras: {erro}</p>}
+      {erro && <p className="erro caixa" role="alert">{erro}</p>}
 
       {carregando ? (
         <div className="lista-esqueleto" aria-busy="true">

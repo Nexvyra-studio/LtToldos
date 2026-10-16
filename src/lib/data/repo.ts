@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -11,6 +10,22 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { auth, db, firebaseAtivo } from "../firebase";
+
+/**
+ * O Firestore grava primeiro no aparelho e depois confirma no servidor.
+ * Sem internet, a confirmação demora; então esperamos no máximo 1,5 s:
+ * se der erro rápido (ex.: sem permissão) o erro aparece; se só estiver
+ * lento/offline, seguimos e ele sincroniza sozinho quando a conexão voltar.
+ */
+async function gravar(p: Promise<unknown>) {
+  let erro: unknown = null;
+  p.catch((e) => {
+    erro = e;
+    console.error("[Firestore]", e);
+  });
+  await Promise.race([p, new Promise((r) => setTimeout(r, 1500))]);
+  if (erro) throw erro;
+}
 
 /**
  * Repositório simples: usa o Firestore quando configurado e,
@@ -60,20 +75,20 @@ function repoFirestore<T extends { id: string }>(
       );
     },
     async criar(dados) {
-      const ref = await addDoc(
-        col(),
-        limparUndefined({ ...dados, criadoPor: auth?.currentUser?.email ?? null }),
+      const ref = doc(col()); // id gerado no aparelho, funciona offline
+      await gravar(
+        setDoc(ref, limparUndefined({ ...dados, criadoPor: auth?.currentUser?.email ?? null })),
       );
       return ref.id;
     },
     async atualizar(id, dados) {
-      await updateDoc(doc(db!, nome, id), limparUndefined(dados as object));
+      await gravar(updateDoc(doc(db!, nome, id), limparUndefined(dados as object)));
     },
     async excluir(id) {
-      await deleteDoc(doc(db!, nome, id));
+      await gravar(deleteDoc(doc(db!, nome, id)));
     },
     async restaurar(item) {
-      await setDoc(doc(db!, nome, item.id), limparUndefined(semId(item)));
+      await gravar(setDoc(doc(db!, nome, item.id), limparUndefined(semId(item))));
     },
   };
 }

@@ -1,21 +1,54 @@
 rules_version = '2';
 
-// Apenas usuários logados (criados no Console do Firebase > Authentication)
-// podem ler e gravar os dados da empresa.
+// Regras do banco (Firestore) do sistema RDN Soldas | Toldos.
+// Só quem fez login (usuário criado em Authentication) lê e grava,
+// e cada documento precisa ter os campos certos.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /lancamentos/{id} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-        && request.resource.data.valor is number
-        && request.resource.data.valor > 0;
-      allow update: if request.auth != null
-        && request.resource.data.valor is number
-        && request.resource.data.valor > 0;
-      allow delete: if request.auth != null;
+
+    function logado() {
+      return request.auth != null;
     }
+
+    function ehData(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    // ---------- Financeiro: compras e pagamentos ----------
+    match /lancamentos/{id} {
+      function lancamentoValido(d) {
+        return d.keys().hasAll(['descricao', 'valor', 'data', 'pago', 'dataPagamento', 'criadoEm'])
+          && d.keys().hasOnly(['descricao', 'valor', 'data', 'pago', 'dataPagamento', 'criadoEm', 'criadoPor'])
+          && d.descricao is string && d.descricao.size() <= 80
+          && d.valor is number && d.valor > 0 && d.valor < 100000000
+          && ehData(d.data)
+          && d.pago is bool
+          && (d.dataPagamento == null || ehData(d.dataPagamento))
+          && d.criadoEm is number;
+      }
+
+      allow read, delete: if logado();
+      allow create, update: if logado() && lancamentoValido(request.resource.data);
+    }
+
+    // ---------- Toldos: cálculos salvos ----------
     match /calculos/{id} {
-      allow read, write: if request.auth != null;
+      function calculoValido(d) {
+        return d.keys().hasAll(['tipo', 'cliente', 'entrada', 'resultado', 'criadoEm'])
+          && d.tipo in ['cortina', 'casca', 'casca-bando', 'fixo-lateral']
+          && d.cliente is string && d.cliente.size() <= 60
+          && d.entrada is map
+          && d.resultado is map
+          && d.criadoEm is number;
+      }
+
+      allow read, delete: if logado();
+      allow create, update: if logado() && calculoValido(request.resource.data);
+    }
+
+    // qualquer outra coleção fica bloqueada
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
