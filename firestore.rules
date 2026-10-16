@@ -18,7 +18,9 @@ service cloud.firestore {
     match /lancamentos/{id} {
       function lancamentoValido(d) {
         return d.keys().hasAll(['descricao', 'valor', 'data', 'pago', 'dataPagamento', 'criadoEm'])
-          && d.keys().hasOnly(['descricao', 'valor', 'data', 'pago', 'dataPagamento', 'criadoEm', 'criadoPor'])
+          && d.keys().hasOnly(['tipo', 'servicoId', 'descricao', 'valor', 'data', 'pago', 'dataPagamento', 'criadoEm', 'criadoPor'])
+          && (!('tipo' in d) || d.tipo in ['despesa', 'receita'])
+          && (!('servicoId' in d) || d.servicoId == null || d.servicoId is string)
           && d.descricao is string && d.descricao.size() <= 80
           && d.valor is number && d.valor > 0 && d.valor < 100000000
           && ehData(d.data)
@@ -31,7 +33,7 @@ service cloud.firestore {
       allow create, update: if logado() && lancamentoValido(request.resource.data);
     }
 
-    // ---------- Toldos: cálculos salvos ----------
+    // ---------- Serviços: cálculos de toldo salvos ----------
     match /calculos/{id} {
       function calculoValido(d) {
         return d.keys().hasAll(['tipo', 'cliente', 'entrada', 'resultado', 'criadoEm'])
@@ -39,7 +41,11 @@ service cloud.firestore {
           && d.cliente is string && d.cliente.size() <= 60
           && d.entrada is map
           && d.resultado is map
-          && d.criadoEm is number;
+          && d.criadoEm is number
+          && (!('valor' in d) || (d.valor is number && d.valor >= 0))
+          && (!('status' in d) || d.status in ['aberto', 'finalizado'])
+          && (!('finalizadoEm' in d) || d.finalizadoEm == null || ehData(d.finalizadoEm))
+          && (!('lancamentoId' in d) || d.lancamentoId == null || d.lancamentoId is string);
       }
 
       allow read, delete: if logado();

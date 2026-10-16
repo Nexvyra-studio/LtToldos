@@ -33,7 +33,9 @@ async function gravar(p: Promise<unknown>) {
  */
 export interface Repo<T extends { id: string }> {
   subscribe(cb: (itens: T[]) => void, onError?: (e: Error) => void): () => void;
-  criar(dados: Omit<T, "id">): Promise<string>;
+  /** gera um id novo (para ligar documentos antes de gravar) */
+  novoId(): string;
+  criar(dados: Omit<T, "id">, id?: string): Promise<string>;
   atualizar(id: string, dados: Partial<Omit<T, "id">>): Promise<void>;
   excluir(id: string): Promise<void>;
   /** grava com o mesmo id (usado para desfazer uma exclusão) */
@@ -45,6 +47,10 @@ export function criarRepo<T extends { id: string }>(
   ordenar: (a: T, b: T) => number,
 ): Repo<T> {
   return firebaseAtivo ? repoFirestore<T>(nome, ordenar) : repoLocal<T>(nome, ordenar);
+}
+
+function idLocal() {
+  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function semId<T extends { id: string }>(item: T) {
@@ -74,8 +80,11 @@ function repoFirestore<T extends { id: string }>(
         (e) => onError?.(e),
       );
     },
-    async criar(dados) {
-      const ref = doc(col()); // id gerado no aparelho, funciona offline
+    novoId() {
+      return doc(col()).id;
+    },
+    async criar(dados, id) {
+      const ref = id ? doc(db!, nome, id) : doc(col()); // id gerado no aparelho, funciona offline
       await gravar(
         setDoc(ref, limparUndefined({ ...dados, criadoPor: auth?.currentUser?.email ?? null })),
       );
@@ -136,8 +145,9 @@ function repoLocal<T extends { id: string }>(
         window.removeEventListener("storage", aoMudarOutraAba);
       };
     },
-    async criar(dados) {
-      const id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    novoId: idLocal,
+    async criar(dados, idDado) {
+      const id = idDado ?? idLocal();
       gravar([...atual(), { ...(dados as object), id } as T]);
       return id;
     },

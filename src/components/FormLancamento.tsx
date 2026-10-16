@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { LuCalendar, LuCheck, LuTrash2 } from "react-icons/lu";
-import type { Lancamento } from "@/lib/data/lancamentos";
+import { LuArrowDownLeft, LuArrowUpRight, LuCalendar, LuCheck, LuTrash2 } from "react-icons/lu";
+import { tipoDe, type Lancamento, type TipoLancamento } from "@/lib/data/lancamentos";
 import { centavosParaTexto, formatDataCurta, hojeISO } from "@/lib/format";
 
 export interface DadosForm {
+  tipo: TipoLancamento;
   valor: number;
   data: string;
   descricao: string;
@@ -14,19 +15,24 @@ export interface DadosForm {
 
 interface Props {
   inicial?: Lancamento;
+  tipoInicial?: TipoLancamento;
   sugestoes: string[];
   onSalvar(d: DadosForm): Promise<void> | void;
   onExcluir?(): void;
 }
 
 /** Formulário curto: só o valor é obrigatório */
-export function FormLancamento({ inicial, sugestoes, onSalvar, onExcluir }: Props) {
+export function FormLancamento({ inicial, tipoInicial = "despesa", sugestoes, onSalvar, onExcluir }: Props) {
+  const [tipo, setTipo] = useState<TipoLancamento>(inicial ? tipoDe(inicial) : tipoInicial);
   const [centavos, setCentavos] = useState(inicial ? Math.round(inicial.valor * 100) : 0);
   const [data, setData] = useState(inicial?.data ?? hojeISO());
   const [descricao, setDescricao] = useState(inicial?.descricao ?? "");
   const [pago, setPago] = useState(inicial?.pago ?? false);
   const [enviando, setEnviando] = useState(false);
   const [tentou, setTentou] = useState(false);
+
+  const deServico = !!inicial?.servicoId;
+  const receita = tipo === "receita";
 
   const filtradas = useMemo(() => {
     const t = descricao.trim().toLowerCase();
@@ -41,7 +47,7 @@ export function FormLancamento({ inicial, sugestoes, onSalvar, onExcluir }: Prop
     if (centavos <= 0) return;
     setEnviando(true);
     try {
-      await onSalvar({ valor: centavos / 100, data, descricao: descricao.trim(), pago });
+      await onSalvar({ tipo, valor: centavos / 100, data, descricao: descricao.trim(), pago });
     } finally {
       setEnviando(false);
     }
@@ -51,6 +57,37 @@ export function FormLancamento({ inicial, sugestoes, onSalvar, onExcluir }: Prop
 
   return (
     <form className="form-lanc" onSubmit={enviar}>
+      {!deServico && (
+        <div className="segmentado tipo-lanc" role="radiogroup" aria-label="Tipo de lançamento">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!receita}
+            className={!receita ? "ativo saida" : undefined}
+            onClick={() => setTipo("despesa")}
+          >
+            <LuArrowUpRight aria-hidden /> Compra
+            <small>sai dinheiro</small>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={receita}
+            className={receita ? "ativo entrada" : undefined}
+            onClick={() => setTipo("receita")}
+          >
+            <LuArrowDownLeft aria-hidden /> Entrada
+            <small>entra dinheiro</small>
+          </button>
+        </div>
+      )}
+      {deServico && (
+        <p className="aviso-servico">
+          Lançamento de um serviço de toldo. O cliente e a exclusão ficam na página <b>Serviços</b>; marcar como
+          recebido aqui também finaliza o serviço.
+        </p>
+      )}
+
       <label className="valor-grande">
         <span className="sr-only">Valor</span>
         <em>R$</em>
@@ -71,7 +108,7 @@ export function FormLancamento({ inicial, sugestoes, onSalvar, onExcluir }: Prop
         />
       </label>
       {tentou && centavos <= 0 && (
-        <p className="erro" role="alert">Digite o valor da compra.</p>
+        <p className="erro" role="alert">Digite o valor.</p>
       )}
 
       <div className="linha-data">
@@ -83,7 +120,7 @@ export function FormLancamento({ inicial, sugestoes, onSalvar, onExcluir }: Prop
             value={data}
             max={hoje}
             onChange={(e) => e.target.value && setData(e.target.value)}
-            aria-label="Data da compra"
+            aria-label="Data"
           />
         </label>
 
@@ -95,38 +132,42 @@ export function FormLancamento({ inicial, sugestoes, onSalvar, onExcluir }: Prop
           onClick={() => setPago((p) => !p)}
         >
           <span className="chave-trilho" aria-hidden><span /></span>
-          {pago ? "Já está pago" : "A pagar"}
+          {receita ? (pago ? "Já recebido" : "A receber") : pago ? "Já está pago" : "A pagar"}
         </button>
       </div>
 
-      <label className="campo">
-        <span>Descrição</span>
-        <input
-          value={descricao}
-          onChange={(e) => setDescricao(e.target.value)}
-          placeholder={`Opcional, ex.: Compra de ${formatDataCurta(data)}`}
-          maxLength={80}
-          autoComplete="off"
-        />
-      </label>
-      {filtradas.length > 0 && (
-        <div className="sugestoes" aria-label="Sugestões">
-          {filtradas.map((s) => (
-            <button key={s} type="button" onClick={() => setDescricao(s)}>
-              {s}
-            </button>
-          ))}
-        </div>
+      {!deServico && (
+        <>
+          <label className="campo">
+            <span>Descrição</span>
+            <input
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder={receita ? "Opcional, ex.: Conserto de toldo" : `Opcional, ex.: Compra de ${formatDataCurta(data)}`}
+              maxLength={80}
+              autoComplete="off"
+            />
+          </label>
+          {filtradas.length > 0 && (
+            <div className="sugestoes" aria-label="Sugestões">
+              {filtradas.map((s) => (
+                <button key={s} type="button" onClick={() => setDescricao(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <button className="botao-principal" disabled={enviando}>
         <LuCheck aria-hidden />
-        {enviando ? "Salvando…" : inicial ? "Salvar alterações" : "Salvar compra"}
+        {enviando ? "Salvando…" : inicial ? "Salvar alterações" : receita ? "Salvar entrada" : "Salvar compra"}
       </button>
 
-      {onExcluir && (
+      {onExcluir && !deServico && (
         <button type="button" className="botao-perigo" onClick={onExcluir}>
-          <LuTrash2 aria-hidden /> Excluir compra
+          <LuTrash2 aria-hidden /> Excluir lançamento
         </button>
       )}
     </form>

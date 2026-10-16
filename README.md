@@ -38,8 +38,18 @@ dados ficam salvos só no navegador do aparelho.
 - Em todos: largura do rolo livre, gomo cortado no meio, retalho opcional, desenho estilo caderno,
   plano de corte, conta passo a passo e cálculos salvos.
 
+**Serviços**
+- Ao salvar um cálculo com cliente e valor, ele vira um serviço "em aberto" e entra no
+  Financeiro como **a receber**.
+- Na página Serviços: filtros (em aberto/finalizados, tipo, período, busca), editar cliente/valor,
+  abrir o cálculo, excluir e **finalizar**. Finalizar marca o valor como **recebido** no Financeiro
+  (e reabrir volta para a receber).
+
 **Financeiro**
-- Lançamento rápido (só o valor é obrigatório), marcar como pago, filtros, busca e totais.
+- Entradas (serviços e entradas avulsas) e saídas (compras).
+- Resumo do período: saldo, a receber, recebido, a pagar e pago (toque num cartão para filtrar).
+- Filtros: período, tipo (tudo/entradas/saídas), situação (pendentes/quitados), busca e ordenação.
+- Marcar como recebido um lançamento de serviço também finaliza o serviço.
 
 **Login**
 - Sem Firebase: modo de teste com usuário `adm` e senha `123`.
@@ -49,19 +59,21 @@ dados ficam salvos só no navegador do aparelho.
 
 As coleções são criadas sozinhas no primeiro lançamento/cálculo salvo. Não precisa criar nada à mão.
 
-### Coleção `lancamentos` (compras do financeiro)
+### Coleção `lancamentos` (financeiro: entradas e saídas)
 
 | Campo | Tipo | Exemplo | Observação |
 |---|---|---|---|
+| `tipo` | texto | `"receita"` | `receita` (entrada/serviço) ou `despesa` (compra); sem o campo = despesa |
+| `servicoId` | texto ou nulo | `"aB3x..."` | id do serviço que gerou a entrada |
 | `descricao` | texto | `"Lona azul 1,40"` | pode ser vazio (aparece "Compra de dd/mm") |
 | `valor` | número | `1850.5` | em reais |
 | `data` | texto | `"2026-10-16"` | dia da compra |
-| `pago` | verdadeiro/falso | `false` | |
+| `pago` | verdadeiro/falso | `false` | despesa: pago · receita: recebido |
 | `dataPagamento` | texto ou nulo | `"2026-10-20"` | preenchido ao marcar como pago |
 | `criadoEm` | número | `1792171234567` | data/hora em milissegundos |
 | `criadoPor` | texto | `"rdn.4123@gmail.com"` | e-mail de quem lançou |
 
-### Coleção `calculos` (cálculos de toldo salvos)
+### Coleção `calculos` (serviços: cálculos de toldo salvos)
 
 | Campo | Tipo | Observação |
 |---|---|---|
@@ -69,6 +81,10 @@ As coleções são criadas sozinhas no primeiro lançamento/cálculo salvo. Não
 | `cliente` | texto | cliente ou referência (opcional) |
 | `entrada` | mapa | medidas digitadas: `largura`, `altura`, `acabamento`, `modelo`, `quantidade`, `rolo`, `retalho`, `comBando`, `lateral` |
 | `resultado` | mapa | `larguraCorte`, `alturaCorte`, `gomos`, `emendas`, `larguraGomos`, `retalho`, `metrosPorToldo`, `metrosTotal`, `metrosRolo`, `metrosGeral`, `laterais`, `usoRetalho`… |
+| `valor` | número | valor cobrado do cliente (R$) |
+| `status` | texto | `aberto` ou `finalizado` |
+| `finalizadoEm` | texto ou nulo | dia em que foi finalizado (`aaaa-mm-dd`) |
+| `lancamentoId` | texto | id do lançamento "a receber" no financeiro |
 | `criadoEm` | número | data/hora em milissegundos |
 | `criadoPor` | texto | e-mail de quem salvou |
 
@@ -93,6 +109,7 @@ adicione o domínio da Vercel (ex.: `lt-toldos.vercel.app`).
 | Regras dos toldos | `src/lib/calc/cortina.ts` |
 | Lista de tipos | `src/lib/calc/tipos.ts` |
 | Tela de cálculo (todos os tipos) | `src/components/CalculadoraToldo.tsx` |
+| Serviços | `src/app/servicos/page.tsx`, `src/lib/data/servicos.ts` |
 | Financeiro | `src/app/financeiro/page.tsx` |
 | Cores e visual | `src/app/globals.css` (variáveis no topo) |
 | Conexão com o Firebase | `src/lib/firebase.ts` |

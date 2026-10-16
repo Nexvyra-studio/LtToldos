@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { LuMinus, LuPlus, LuRuler, LuTrash2 } from "react-icons/lu";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LuChevronRight, LuClipboardList, LuMinus, LuPlus, LuRuler } from "react-icons/lu";
 import { Cabecalho } from "@/components/Cabecalho";
 import { DesenhoCaderno } from "@/components/DesenhoCaderno";
 import { DesenhoCasca } from "@/components/DesenhoCasca";
@@ -18,8 +20,9 @@ import {
   type Acabamento,
   type Modelo,
 } from "@/lib/calc/cortina";
-import { calculosRepo, useCalculos, type CalculoSalvo } from "@/lib/data/calculos";
-import { formatDataCurta, formatM, formatMetros, formatNum, hojeISO, parseValor } from "@/lib/format";
+import { statusDe, useCalculos, type CalculoSalvo } from "@/lib/data/calculos";
+import { CHAVE_ABRIR, salvarServico } from "@/lib/data/servicos";
+import { centavosParaTexto, formatBRL, formatM, formatMetros, formatNum, parseValor } from "@/lib/format";
 
 function lerRoloSalvo() {
   try {
@@ -90,6 +93,8 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
   const [retalhoLarg, setRetalhoLarg] = useState("");
   const [retalhoComp, setRetalhoComp] = useState("");
   const [cliente, setCliente] = useState("");
+  const [valorCent, setValorCent] = useState(0);
+  const router = useRouter();
   const [salvando, setSalvando] = useState(false);
 
   const entrada = useMemo(
@@ -143,18 +148,17 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
     );
 
   async function salvar() {
-    if (!r) return;
+    if (!r || valorCent <= 0) return;
     setSalvando(true);
     try {
-      await calculosRepo.criar({
-        tipo: modelo,
-        cliente: cliente.trim(),
-        entrada,
-        resultado: r,
-        criadoEm: Date.now(),
-      });
+      const valor = valorCent / 100;
+      await salvarServico({ tipo: modelo, cliente, entrada, resultado: r, valor });
       setCliente("");
-      toast({ mensagem: "Cálculo salvo" });
+      setValorCent(0);
+      toast({
+        mensagem: `Serviço salvo. ${formatBRL(valor)} a receber`,
+        acao: { rotulo: "Ver", executar: () => router.push("/servicos") },
+      });
     } catch {
       toast({ mensagem: "Não foi possível salvar. Confira a conexão." });
     } finally {
@@ -179,16 +183,32 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
     setLatLarg(c.entrada.lateral ? String(c.entrada.lateral.largura).replace(".", ",") : "");
     setLatAlt(c.entrada.lateral ? String(c.entrada.lateral.altura).replace(".", ",") : "");
     setCliente(c.cliente);
+    setValorCent(c.valor ? Math.round(c.valor * 100) : 0);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function excluir(c: CalculoSalvo) {
-    await calculosRepo.excluir(c.id);
-    toast({
-      mensagem: "Cálculo excluído",
-      acao: { rotulo: "Desfazer", executar: () => calculosRepo.restaurar(c) },
-    });
-  }
+  // abre um serviço escolhido na página Serviços
+  useEffect(() => {
+    let id: string | null = null;
+    try {
+      id = sessionStorage.getItem(CHAVE_ABRIR);
+    } catch {
+      /* nada */
+    }
+    if (!id) return;
+    const c = todosSalvos.find((x) => x.id === id);
+    if (c) {
+      try {
+        sessionStorage.removeItem(CHAVE_ABRIR);
+      } catch {
+        /* nada */
+      }
+      carregar(c);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todosSalvos]);
+
+  const abertos = salvos.filter((c) => statusDe(c) === "aberto").length;
 
   return (
     <>
@@ -325,6 +345,9 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
             <div className="resultado-total">
               <span>{r.usoRetalho?.usado ? "Lona nova do rolo" : "Lona necessária"}</span>
               <strong>{formatMetros(metrosFinal)}<em>m</em></strong>
+              {ehLateral && !lat && (
+                <p className="resultado-partes">Só a casca. Preencha as laterais para somar a lona delas.</p>
+              )}
               {lat && (
                 <p className="resultado-partes">
                   Casca {formatM(r.metrosRolo)} + 2 laterais {formatM(lat.metrosTotal)}
@@ -456,17 +479,35 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
           </section>
 
           <section className="cartao salvar">
+            <h2 className="titulo-secao">Salvar como serviço</h2>
             <label className="campo">
               <span>Cliente ou referência</span>
               <input
                 value={cliente}
                 onChange={(e) => setCliente(e.target.value)}
-                placeholder="Opcional"
+                placeholder="Ex.: Padaria Central"
                 maxLength={60}
               />
             </label>
-            <button type="button" className="botao-principal" onClick={salvar} disabled={salvando}>
-              {salvando ? "Salvando…" : "Salvar cálculo"}
+            <label className="campo campo-valor">
+              <span>Valor do serviço</span>
+              <div>
+                <em>R$</em>
+                <input
+                  inputMode="numeric"
+                  value={centavosParaTexto(valorCent)}
+                  onChange={(e) => setValorCent(Number(e.target.value.replace(/\D/g, "").slice(0, 11) || 0))}
+                  onFocus={(e) => {
+                    const el = e.target;
+                    requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
+                  }}
+                  aria-label="Valor do serviço em reais"
+                />
+              </div>
+            </label>
+            <p className="dica-salvar">Vai para Serviços e entra no Financeiro como <b>a receber</b>.</p>
+            <button type="button" className="botao-principal" onClick={salvar} disabled={salvando || valorCent <= 0}>
+              {salvando ? "Salvando…" : "Salvar serviço"}
             </button>
           </section>
         </>
@@ -485,36 +526,18 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
         </>
       )}
 
-      {salvos.length > 0 && (
-        <section className="salvos">
-          <h2 className="titulo-secao">Cálculos salvos</h2>
-          <ul>
-            {salvos.map((c) => (
-              <li key={c.id}>
-                <button type="button" className="salvo" onClick={() => carregar(c)}>
-                  <strong>{c.cliente || "Sem referência"}</strong>
-                  <span>
-                    {formatNum(c.entrada.largura)} × {formatNum(c.entrada.altura)},{" "}
-                    {c.tipo === "casca" ? "casca" : c.tipo === "casca-bando" ? "casca com bandô" : c.tipo === "fixo-lateral" ? `com lateral${c.entrada.comBando ? " e bandô" : ""}` : NOME_ACABAMENTO[c.entrada.acabamento].toLowerCase()}
-                    {c.entrada.quantidade > 1 && `, ${c.entrada.quantidade} toldos`}
-                    {c.entrada.rolo && `, rolo ${formatNum(c.entrada.rolo)}`}
-                  </span>
-                  <em>{formatM(c.resultado.metrosGeral ?? c.resultado.metrosRolo ?? c.resultado.metrosTotal)}</em>
-                  <small>{formatDataCurta(hojeISO(new Date(c.criadoEm)))}</small>
-                </button>
-                <button
-                  type="button"
-                  className="icone-btn perigo"
-                  aria-label={`Excluir cálculo ${c.cliente || ""}`}
-                  onClick={() => excluir(c)}
-                >
-                  <LuTrash2 />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <Link href="/servicos" className="link-servicos">
+        <LuClipboardList aria-hidden />
+        <span>
+          <strong>Serviços salvos</strong>
+          <small>
+            {salvos.length === 0
+              ? "Nenhum deste tipo ainda"
+              : `${salvos.length} deste tipo, ${abertos} em aberto`}
+          </small>
+        </span>
+        <LuChevronRight aria-hidden />
+      </Link>
     </>
   );
 }

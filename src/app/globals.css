@@ -943,3 +943,160 @@ rect.cd-linha { stroke-dasharray: 100; animation: risca 0.6s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ============================================================
+   Serviços e Financeiro (entradas e saídas)
+   ============================================================ */
+:root { --entrada: #1f8a55; --saida: #d0541b; }
+@media (prefers-color-scheme: dark) { :root { --entrada: #45c784; --saida: #f28a4c; } }
+
+.botao-secundario {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 50px;
+  border: 1.5px solid var(--linha); border-radius: var(--raio-m);
+  background: var(--papel); color: var(--tinta); font-weight: 600;
+  transition: border-color 0.2s, background 0.2s;
+}
+.botao-secundario:hover { border-color: var(--lona); }
+.botao-secundario:disabled { opacity: 0.5; }
+.botao-principal.botao-ok { background: linear-gradient(180deg, #2fa66a, #1f8a55); box-shadow: 0 8px 18px -10px rgb(31 138 85 / 0.8); }
+
+.campo-valor > div {
+  display: flex; align-items: baseline; gap: 8px;
+  height: 54px; padding: 0 14px;
+  border: 1.5px solid var(--linha); border-radius: var(--raio-m); background: var(--fundo);
+}
+.campo-valor > div:focus-within { border-color: var(--lona); background: var(--papel); }
+.campo-valor em { font-style: normal; font-family: var(--fonte-display); font-weight: 600; font-size: 1.2rem; color: var(--tinta-2); }
+.campo-valor input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: none;
+  font-family: var(--fonte-display); font-weight: 700; font-size: 1.6rem; font-variant-numeric: tabular-nums;
+}
+.dica-salvar { font-size: 0.85rem; color: var(--tinta-2); }
+.dica-salvar b { color: var(--entrada); }
+
+.link-servicos {
+  margin: 22px 16px 0;
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px;
+  background: var(--papel); border-radius: var(--raio-g); box-shadow: var(--sombra);
+  border: 1.5px solid transparent; transition: border-color 0.2s;
+}
+.link-servicos:hover { border-color: color-mix(in srgb, var(--lona) 45%, transparent); }
+.link-servicos > svg:first-child { font-size: 1.6rem; color: var(--lona); flex: none; }
+.link-servicos > svg:last-child { margin-left: auto; color: var(--tinta-2); font-size: 1.3rem; }
+.link-servicos span { display: flex; flex-direction: column; }
+.link-servicos small { color: var(--tinta-2); font-size: 0.85rem; }
+
+/* --- Serviços --- */
+.resumo-servicos { display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 0; overflow: hidden; }
+.resumo-servicos > div { padding: 16px 18px; display: flex; flex-direction: column; }
+.resumo-servicos > div + div { border-left: 1px solid var(--linha); }
+.resumo-servicos span { font-size: 0.85rem; font-weight: 600; color: var(--tinta-2); }
+.resumo-servicos strong { font-family: var(--fonte-display); font-size: 2.4rem; line-height: 1.05; }
+.resumo-servicos > div:first-child strong { color: var(--lona); }
+.resumo-servicos > div:last-child strong { color: var(--entrada); }
+.resumo-servicos small { font-size: 0.82rem; color: var(--tinta-2); }
+
+.filtros .linha-filtros + .linha-filtros, .filtros .chips + .linha-filtros, .filtros .linha-filtros + .chips { margin-top: 8px; }
+.filtros .chips + .chips { margin-top: -2px; }
+.linha-filtros .segmentado.compacto { flex: 1 1 auto; }
+.linha-filtros .segmentado.compacto button { flex: 1; }
+.busca-larga { flex: 1 1 auto; height: 46px; }
+
+.lista-servicos { list-style: none; margin: 10px 16px 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.servico {
+  display: flex; align-items: stretch;
+  background: var(--papel); border-radius: var(--raio-g); box-shadow: var(--sombra); overflow: hidden;
+  border-left: 4px solid var(--lona);
+}
+.servico.finalizado { border-left-color: var(--entrada); }
+.servico-corpo {
+  flex: 1; min-width: 0; text-align: left; border: 0; background: none;
+  padding: 14px 12px 12px 14px; display: flex; flex-direction: column; gap: 4px;
+}
+.servico-topo { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.servico-topo strong { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.servico-topo em { font-style: normal; font-family: var(--fonte-display); font-weight: 700; font-size: 1.3rem; white-space: nowrap; }
+.servico.finalizado .servico-topo em { color: var(--entrada); }
+.servico-info { font-size: 0.86rem; color: var(--tinta-2); }
+.servico-rodape { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+.servico-rodape small { font-size: 0.78rem; color: var(--tinta-2); }
+.selo { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.selo-aberto { background: var(--lona-clara); color: var(--lona); }
+.selo-ok { background: var(--pago-claro); color: var(--entrada); }
+.servico-acao {
+  width: 64px; flex: none; border: 0;
+  border-left: 1px solid var(--linha);
+  background: color-mix(in srgb, var(--entrada) 10%, var(--papel));
+  color: var(--entrada); font-size: 1.5rem;
+  display: grid; place-items: center;
+  transition: background 0.2s;
+}
+.servico-acao:hover { background: color-mix(in srgb, var(--entrada) 18%, var(--papel)); }
+.servico-acao.reabrir { background: var(--papel); color: var(--tinta-2); font-size: 1.25rem; }
+
+.detalhe-servico { display: flex; flex-direction: column; gap: 12px; }
+.detalhe-medidas {
+  margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--linha); border-radius: var(--raio-m); overflow: hidden;
+}
+.detalhe-medidas div { background: var(--fundo); padding: 10px 12px; }
+.detalhe-medidas dt { font-size: 0.75rem; color: var(--tinta-2); font-weight: 600; }
+.detalhe-medidas dd { margin: 0; font-family: var(--fonte-display); font-weight: 700; font-size: 1.2rem; }
+
+/* --- Financeiro --- */
+.resumo-fin .resumo-principal > span { color: var(--tinta-2); }
+.resumo-principal strong.negativo { color: var(--saida); }
+.resumo-principal small b { color: var(--tinta); }
+.barra-saldo { display: flex; gap: 3px; height: 10px; margin: 14px 0; }
+.barra-saldo span { border-radius: 999px; transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.b-entrada { background: var(--entrada); }
+.b-saida { background: var(--saida); }
+.resumo-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mini {
+  text-align: left; border: 1.5px solid var(--linha); background: var(--fundo);
+  border-radius: var(--raio-m); padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 1px;
+  transition: border-color 0.2s, transform 0.1s;
+}
+.mini:hover { border-color: currentColor; }
+.mini:active { transform: scale(0.98); }
+.mini span { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; font-weight: 700; }
+.mini.entrada span { color: var(--entrada); }
+.mini.saida span { color: var(--saida); }
+.mini strong { font-family: var(--fonte-display); font-weight: 700; font-size: 1.3rem; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.mini small { font-size: 0.75rem; color: var(--tinta-2); }
+
+.ordenar select {
+  height: 46px; border: 0; border-radius: var(--raio-m); background: var(--papel);
+  padding: 0 12px; font: inherit; font-weight: 600; font-size: 0.88rem; color: var(--tinta);
+}
+.limpar-filtros {
+  margin: 8px 16px 0; display: inline-flex; align-items: center; gap: 6px;
+  border: 0; background: none; color: var(--lona); font-weight: 700; font-size: 0.88rem;
+}
+.contagem { font-size: 0.8rem; color: var(--tinta-2); font-weight: 600; padding: 0 6px; }
+.grupo-dia h3 .pos { color: var(--entrada); }
+.grupo-dia h3 .neg { color: var(--saida); }
+.item.receita .item-valor { color: var(--entrada); }
+.item.despesa .item-valor { color: var(--tinta); }
+.item.pago .item-valor { opacity: 0.6; }
+.item-status { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.item.receita .item-status { color: var(--entrada); }
+.item.receita:not(.pago) .item-status { color: var(--lona); }
+.item-status svg { font-size: 0.95rem; }
+.selo-mini {
+  font-style: normal; font-size: 0.68rem; font-weight: 700;
+  padding: 1px 7px; border-radius: 999px; background: var(--lona-clara); color: var(--lona);
+}
+.item-data { color: var(--tinta-2); font-weight: 500; margin-left: 2px; }
+
+.tipo-lanc button { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 6px; }
+.tipo-lanc button small { width: 100%; text-align: center; }
+.tipo-lanc button.ativo.saida { color: var(--saida); }
+.tipo-lanc button.ativo.entrada { color: var(--entrada); }
+.aviso-servico {
+  font-size: 0.88rem; color: var(--tinta-2);
+  background: var(--lona-clara); border-radius: var(--raio-m); padding: 10px 12px;
+}

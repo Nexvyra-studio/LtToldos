@@ -13,7 +13,17 @@ export interface CalculoSalvo {
   resultado: ResultadoCortina;
   criadoEm: number;
   criadoPor?: string | null;
+  /** valor cobrado do cliente pelo serviço (R$) */
+  valor?: number;
+  /** aberto = em produção · finalizado = entregue (e recebido) */
+  status?: "aberto" | "finalizado";
+  /** dia em que foi finalizado, yyyy-mm-dd */
+  finalizadoEm?: string | null;
+  /** lançamento "a receber" criado no financeiro */
+  lancamentoId?: string | null;
 }
+
+export const statusDe = (c: Pick<CalculoSalvo, "status">) => c.status ?? "aberto";
 
 export const calculosRepo = criarRepo<CalculoSalvo>(
   COLECOES.calculos,

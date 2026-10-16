@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LuCalculator, LuWallet } from "react-icons/lu";
+import { LuCalculator, LuClipboardList, LuWallet } from "react-icons/lu";
 
 const ITENS = [
   { href: "/toldos", rotulo: "Toldos", Icone: LuCalculator },
+  { href: "/servicos", rotulo: "Serviços", Icone: LuClipboardList },
   { href: "/financeiro", rotulo: "Financeiro", Icone: LuWallet },
 ];
 
