@@ -20,7 +20,7 @@ import {
   type Acabamento,
   type Modelo,
 } from "@/lib/calc/cortina";
-import { statusDe, useCalculos, type CalculoSalvo } from "@/lib/data/calculos";
+import { calculosRepo, type CalculoSalvo } from "@/lib/data/calculos";
 import { CHAVE_ABRIR, salvarServico } from "@/lib/data/servicos";
 import { mensagemErroBanco } from "@/lib/firebase";
 import { centavosParaTexto, formatBRL, formatM, formatMetros, formatNum, parseValor } from "@/lib/format";
@@ -60,8 +60,6 @@ const TEXTOS: Record<Modelo, { titulo: string; altura: string; vazio: string }> 
 /** Tela de cálculo por gomos, usada pelo Toldo Cortina e pelo Toldo Fixo (Casca) */
 export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
   const toast = useToast();
-  const todosSalvos = useCalculos();
-  const salvos = todosSalvos.filter((c) => (c.tipo ?? "cortina") === modelo);
   const textos = TEXTOS[modelo];
   const ehCortina = modelo === "cortina";
 
@@ -197,19 +195,18 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
       /* nada */
     }
     if (!id) return;
-    const c = todosSalvos.find((x) => x.id === id);
-    if (c) {
-      try {
-        sessionStorage.removeItem(CHAVE_ABRIR);
-      } catch {
-        /* nada */
-      }
-      carregar(c);
+    try {
+      sessionStorage.removeItem(CHAVE_ABRIR);
+    } catch {
+      /* nada */
     }
+    // lê só esse serviço (1 leitura), sem carregar a lista toda
+    calculosRepo
+      .obter(id)
+      .then((c) => c && carregar(c))
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todosSalvos]);
-
-  const abertos = salvos.filter((c) => statusDe(c) === "aberto").length;
+  }, []);
 
   return (
     <>
@@ -531,11 +528,7 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
         <LuClipboardList aria-hidden />
         <span>
           <strong>Serviços salvos</strong>
-          <small>
-            {salvos.length === 0
-              ? "Nenhum deste tipo ainda"
-              : `${salvos.length} deste tipo, ${abertos} em aberto`}
-          </small>
+          <small>Ver, finalizar ou excluir serviços</small>
         </span>
         <LuChevronRight aria-hidden />
       </Link>

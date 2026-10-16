@@ -5,6 +5,7 @@ import {
   LuArrowDownLeft,
   LuArrowUpRight,
   LuCheck,
+  LuListFilter,
   LuLogOut,
   LuPlus,
   LuReceipt,
@@ -13,13 +14,14 @@ import {
 } from "react-icons/lu";
 import { Cabecalho } from "@/components/Cabecalho";
 import { FormLancamento, type DadosForm } from "@/components/FormLancamento";
+import { useConfirmar } from "@/components/Confirmar";
 import { Sheet } from "@/components/Sheet";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
 import { mensagemErroBanco } from "@/lib/firebase";
 import { calculosRepo } from "@/lib/data/calculos";
 import { lancamentosRepo, tipoDe, useLancamentos, type Lancamento } from "@/lib/data/lancamentos";
-import { sincronizarDoFinanceiro } from "@/lib/data/servicos";
+import { excluirServicoDoLancamento, sincronizarDoFinanceiro } from "@/lib/data/servicos";
 import { formatBRL, formatDataCurta, formatDataGrupo, hojeISO } from "@/lib/format";
 import { PERIODOS, intervaloDoPeriodo, type PeriodoId } from "@/lib/periodos";
 
@@ -64,28 +66,35 @@ const ORDENS: { id: Ordem; nome: string }[] = [
 export default function FinanceiroPage() {
   const toast = useToast();
   const { sair, usuario } = useAuth();
-  const { itens, carregando, erro } = useLancamentos();
+  const confirmar = useConfirmar();
 
+  // rascunho do período e da busca: só vai ao banco quando toca em Buscar
   const [periodo, setPeriodo] = useState<PeriodoId>("mes");
   const [datas, setDatas] = useState({ de: "", ate: "" });
+  const [busca, setBusca] = useState("");
+  const [aplicado, setAplicado] = useState<{ periodo: PeriodoId; datas: { de: string; ate: string }; busca: string } | null>(null);
+  const intervaloAplicado = useMemo(
+    () => (aplicado ? intervaloDoPeriodo(aplicado.periodo, aplicado.datas) : null),
+    [aplicado],
+  );
+  const { itens, carregando, erro, buscou } = useLancamentos(intervaloAplicado);
+  const pendente =
+    !aplicado ||
+    aplicado.periodo !== periodo ||
+    aplicado.busca !== busca ||
+    (periodo === "personalizado" && (aplicado.datas.de !== datas.de || aplicado.datas.ate !== datas.ate));
+  const buscar = () => setAplicado({ periodo, datas: { ...datas }, busca });
+
   const [ver, setVer] = useState<Ver>("tudo");
   const [ordem, setOrdem] = useState<Ordem>("recentes");
-  const [busca, setBusca] = useState("");
   const [novoAberto, setNovoAberto] = useState(false);
   const [editando, setEditando] = useState<Lancamento | null>(null);
 
-  const intervalo = useMemo(() => intervaloDoPeriodo(periodo, datas), [periodo, datas]);
-
-  // período + busca: base dos totais
+  // o banco já devolve só o período buscado; aqui só aplica o texto da busca
   const doPeriodo = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    return itens.filter(
-      (l) =>
-        (!intervalo.de || l.data >= intervalo.de) &&
-        (!intervalo.ate || l.data <= intervalo.ate) &&
-        (!t || nomeLancamento(l).toLowerCase().includes(t)),
-    );
-  }, [itens, intervalo, busca]);
+    const t = (aplicado?.busca ?? "").trim().toLowerCase();
+    return t ? itens.filter((l) => nomeLancamento(l).toLowerCase().includes(t)) : itens;
+  }, [itens, aplicado]);
 
   const totais = useMemo(() => {
     const t = { aReceber: 0, recebido: 0, aPagar: 0, pago: 0, nReceber: 0, nPagar: 0 };
@@ -148,7 +157,7 @@ export default function FinanceiroPage() {
   }, [itens]);
 
   const filtrosAtivos =
-    (ver !== "tudo" ? 1 : 0) + (busca.trim() ? 1 : 0) + (ordem !== "recentes" ? 1 : 0);
+    (ver !== "tudo" ? 1 : 0) + (ordem !== "recentes" ? 1 : 0);
   /** toca no cartão: filtra; toca de novo: mostra tudo */
   const alternarVer = (v: Ver) => setVer((atual) => (atual === v ? "tudo" : v));
   const cartao = (v: Ver, extra: string) => ({
@@ -159,7 +168,6 @@ export default function FinanceiroPage() {
   });
   function limparFiltros() {
     setVer("tudo");
-    setBusca("");
     setOrdem("recentes");
   }
 
@@ -171,13 +179,34 @@ export default function FinanceiroPage() {
   const alternarPago = useCallback(
     async (l: Lancamento) => {
       const pago = !l.pago;
+      const r = ehReceita(l);
+      const ok = await confirmar({
+        titulo: pago ? (r ? "Marcar como recebido?" : "Marcar como pago?") : r ? "Voltar para a receber?" : "Voltar para a pagar?",
+        mensagem: (
+          <>
+            <b>{nomeLancamento(l)}</b> · {formatBRL(l.valor)}
+            {pago && r && l.servicoId && (
+              <>
+                <br />O serviço também será finalizado.
+              </>
+            )}
+            {!pago && r && l.servicoId && (
+              <>
+                <br />O serviço volta para em aberto.
+              </>
+            )}
+          </>
+        ),
+        confirmar: pago ? (r ? "Recebido" : "Pago") : "Voltar",
+        tom: pago ? "ok" : "neutro",
+      });
+      if (!ok) return;
       try {
         await definirPago(l, pago, pago ? hojeISO() : null);
       } catch (e) {
         toast({ mensagem: `Não foi possível atualizar. ${mensagemErroBanco(e)}` });
         return;
       }
-      const r = ehReceita(l);
       toast({
         mensagem: pago
           ? r
@@ -191,7 +220,7 @@ export default function FinanceiroPage() {
         acao: { rotulo: "Desfazer", executar: () => definirPago({ ...l, pago }, l.pago, l.dataPagamento) },
       });
     },
-    [toast, definirPago],
+    [toast, definirPago, confirmar],
   );
 
   async function criar(d: DadosForm) {
@@ -241,9 +270,34 @@ export default function FinanceiroPage() {
   }
 
   async function excluir() {
-    if (!editando || editando.servicoId) return;
+    if (!editando) return;
     const copia = editando;
-    await lancamentosRepo.excluir(copia.id);
+    const deServico = !!copia.servicoId;
+    const ok = await confirmar({
+      titulo: deServico ? "Excluir serviço?" : "Excluir lançamento?",
+      mensagem: (
+        <>
+          <b>{nomeLancamento(copia)}</b> · {formatBRL(copia.valor)}
+          <br />
+          {deServico ? "O serviço salvo também será apagado." : "Essa ação apaga o lançamento."}
+        </>
+      ),
+      confirmar: "Excluir",
+      tom: "perigo",
+    });
+    if (!ok) return;
+    try {
+      if (deServico) {
+        const desfazer = await excluirServicoDoLancamento(copia);
+        setEditando(null);
+        toast({ mensagem: "Serviço excluído", acao: { rotulo: "Desfazer", executar: desfazer } });
+        return;
+      }
+      await lancamentosRepo.excluir(copia.id);
+    } catch (e) {
+      toast({ mensagem: `Não foi possível excluir. ${mensagemErroBanco(e)}` });
+      return;
+    }
     setEditando(null);
     toast({
       mensagem: "Lançamento excluído",
@@ -268,6 +322,7 @@ export default function FinanceiroPage() {
         }
       />
 
+      {buscou && (
       <section className="resumo resumo-fin" aria-label="Resumo do período">
         <div className="resumo-principal">
           <span>Saldo do período</span>
@@ -302,6 +357,7 @@ export default function FinanceiroPage() {
           </button>
         </div>
       </section>
+      )}
 
       <section className="filtros" aria-label="Filtros">
         <div className="chips" role="radiogroup" aria-label="Período">
@@ -339,6 +395,8 @@ export default function FinanceiroPage() {
               placeholder="Buscar"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && buscar()}
+              enterKeyHint="search"
               aria-label="Buscar pela descrição"
             />
           </label>
@@ -361,16 +419,32 @@ export default function FinanceiroPage() {
         )}
       </section>
 
+      <button
+        type="button"
+        className={`botao-principal botao-buscar${buscou && pendente ? " pendente" : ""}`}
+        onClick={buscar}
+        disabled={carregando}
+      >
+        <LuSearch aria-hidden /> {carregando ? "Buscando…" : "Buscar"}
+      </button>
+      {buscou && pendente && <p className="aviso-buscar">Filtros mudaram. Toque em Buscar para atualizar.</p>}
+
       {erro && <p className="erro caixa" role="alert">{erro}</p>}
 
-      {carregando ? (
+      {!buscou ? (
+        <section className="antes-de-buscar">
+          <LuListFilter aria-hidden />
+          <p>Escolha o período e toque em Buscar</p>
+          <small>Os lançamentos só são carregados quando você buscar. Para lançar algo novo, toque em +.</small>
+        </section>
+      ) : carregando ? (
         <div className="lista-esqueleto" aria-busy="true">
           {[0, 1, 2].map((i) => <div key={i} />)}
         </div>
       ) : visiveis.length === 0 ? (
         <section className="vazio">
           <LuReceipt aria-hidden />
-          <p>{itens.length === 0 ? "Nenhum lançamento ainda." : "Nada com esses filtros."}</p>
+          <p>{itens.length === 0 ? "Nenhum lançamento nesse período." : "Nada com esses filtros."}</p>
           <small>Toque em + para lançar uma compra ou entrada. Serviços salvos entram sozinhos.</small>
         </section>
       ) : (
@@ -450,7 +524,7 @@ export default function FinanceiroPage() {
             inicial={editando}
             sugestoes={sugestoes}
             onSalvar={salvarEdicao}
-            onExcluir={editando.servicoId ? undefined : excluir}
+            onExcluir={excluir}
           />
         )}
       </Sheet>

@@ -4,11 +4,15 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
+  query,
+  where,
   setDoc,
   updateDoc,
   type DocumentData,
 } from "firebase/firestore";
+import { useEffect, useState } from "react";
 import { auth, db, firebaseAtivo } from "../firebase";
 
 /**
@@ -31,8 +35,21 @@ async function gravar(p: Promise<unknown>) {
  * Repositório simples: usa o Firestore quando configurado e,
  * sem configuração, salva no localStorage do aparelho (modo local).
  */
+/**
+ * Faixa de busca: o banco só devolve os documentos com `campo` entre `de` e `ate`.
+ * Assim cada consulta lê só o período escolhido (economiza leituras do Firebase).
+ */
+export interface Faixa {
+  campo: string;
+  de: string | number | null;
+  ate: string | number | null;
+}
+
 export interface Repo<T extends { id: string }> {
-  subscribe(cb: (itens: T[]) => void, onError?: (e: Error) => void): () => void;
+  /** acompanha os documentos da faixa (ou todos, sem faixa) e avisa quando mudam */
+  subscribe(cb: (itens: T[]) => void, onError?: (e: Error) => void, faixa?: Faixa | null): () => void;
+  /** lê um documento só (1 leitura) */
+  obter(id: string): Promise<T | null>;
   /** gera um id novo (para ligar documentos antes de gravar) */
   novoId(): string;
   criar(dados: Omit<T, "id">, id?: string): Promise<string>;
@@ -70,15 +87,22 @@ function repoFirestore<T extends { id: string }>(
 ): Repo<T> {
   const col = () => collection(db!, nome);
   return {
-    subscribe(cb, onError) {
+    subscribe(cb, onError, faixa) {
+      const filtros: ReturnType<typeof where>[] = [];
+      if (faixa?.de != null) filtros.push(where(faixa.campo, ">=", faixa.de));
+      if (faixa?.ate != null) filtros.push(where(faixa.campo, "<=", faixa.ate));
       return onSnapshot(
-        col(),
+        filtros.length ? query(col(), ...filtros) : col(),
         (snap) => {
           const itens = snap.docs.map((d) => ({ ...(d.data() as object), id: d.id }) as T);
           cb(itens.sort(ordenar));
         },
         (e) => onError?.(e),
       );
+    },
+    async obter(id) {
+      const snap = await getDoc(doc(db!, nome, id));
+      return snap.exists() ? ({ ...(snap.data() as object), id: snap.id } as T) : null;
     },
     novoId() {
       return doc(col()).id;
@@ -129,8 +153,14 @@ function repoLocal<T extends { id: string }>(
   const atual = () => memoria ?? (memoria = ler());
 
   return {
-    subscribe(cb) {
-      const emitir = () => cb([...atual()].sort(ordenar));
+    subscribe(cb, _onError, faixa) {
+      const dentro = (i: T) => {
+        if (!faixa) return true;
+        // datas são texto aaaa-mm-dd e criadoEm é número: os dois comparam em ordem
+        const v = (i as unknown as Record<string, unknown>)[faixa.campo] as number;
+        return (faixa.de == null || v >= (faixa.de as number)) && (faixa.ate == null || v <= (faixa.ate as number));
+      };
+      const emitir = () => cb(atual().filter(dentro).sort(ordenar));
       const aoMudarOutraAba = (e: StorageEvent) => {
         if (e.key === chave) {
           memoria = ler();
@@ -144,6 +174,9 @@ function repoLocal<T extends { id: string }>(
         window.removeEventListener(evento, emitir);
         window.removeEventListener("storage", aoMudarOutraAba);
       };
+    },
+    async obter(id) {
+      return atual().find((i) => i.id === id) ?? null;
     },
     novoId: idLocal,
     async criar(dados, idDado) {
@@ -161,4 +194,34 @@ function repoLocal<T extends { id: string }>(
       gravar([...atual().filter((i) => i.id !== item.id), item]);
     },
   };
+}
+
+/**
+ * Consulta sob demanda: só busca no banco quando recebe uma faixa (botão Buscar).
+ * Sem faixa (null) não lê nada. Repetir a mesma faixa não gasta leituras de novo.
+ */
+export function useConsulta<T extends { id: string }>(repo: Repo<T>, faixa: Faixa | null) {
+  const [itens, setItens] = useState<T[]>([]);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<unknown>(null);
+  const chave = faixa ? JSON.stringify(faixa) : null;
+
+  useEffect(() => {
+    if (!chave) return;
+    setCarregando(true);
+    setErro(null);
+    return repo.subscribe(
+      (lista) => {
+        setItens(lista);
+        setCarregando(false);
+      },
+      (e) => {
+        setErro(e);
+        setCarregando(false);
+      },
+      JSON.parse(chave) as Faixa,
+    );
+  }, [repo, chave]);
+
+  return { itens, carregando, erro, buscou: !!chave };
 }

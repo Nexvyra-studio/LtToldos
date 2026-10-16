@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { COLECOES, mensagemErroBanco } from "../firebase";
-import { criarRepo } from "./repo";
+import { criarRepo, useConsulta } from "./repo";
 
 /** despesa = compra (a pagar) · receita = serviço/entrada (a receber) */
 export type TipoLancamento = "despesa" | "receita";
@@ -31,25 +30,9 @@ export const lancamentosRepo = criarRepo<Lancamento>(COLECOES.lancamentos, (a, b
   a.data === b.data ? b.criadoEm - a.criadoEm : a.data < b.data ? 1 : -1,
 );
 
-export function useLancamentos() {
-  const [itens, setItens] = useState<Lancamento[]>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
-
-  useEffect(
-    () =>
-      lancamentosRepo.subscribe(
-        (lista) => {
-          setItens(lista);
-          setCarregando(false);
-        },
-        (e) => {
-          setErro(mensagemErroBanco(e));
-          setCarregando(false);
-        },
-      ),
-    [],
-  );
-
-  return { itens, carregando, erro };
+/** lançamentos do período (campo `data`, yyyy-mm-dd); null = ainda não buscou */
+export function useLancamentos(periodo: { de: string | null; ate: string | null } | null) {
+  const faixa = periodo ? { campo: "data", de: periodo.de, ate: periodo.ate } : null;
+  const r = useConsulta(lancamentosRepo, faixa);
+  return { ...r, erro: r.erro ? mensagemErroBanco(r.erro) : null };
 }

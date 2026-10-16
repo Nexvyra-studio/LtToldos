@@ -8,14 +8,15 @@ import {
   LuExternalLink,
   LuRotateCcw,
   LuSearch,
+  LuListFilter,
   LuTrash2,
 } from "react-icons/lu";
 import { Cabecalho } from "@/components/Cabecalho";
+import { useConfirmar } from "@/components/Confirmar";
 import { Sheet } from "@/components/Sheet";
 import { useToast } from "@/components/Toast";
 import type { Modelo } from "@/lib/calc/cortina";
 import { statusDe, useCalculos, type CalculoSalvo } from "@/lib/data/calculos";
-import { useLancamentos } from "@/lib/data/lancamentos";
 import {
   CHAVE_ABRIR,
   NOME_TIPO,
@@ -25,9 +26,26 @@ import {
   excluirServico,
 } from "@/lib/data/servicos";
 import { centavosParaTexto, formatBRL, formatDataCurta, formatM, formatNum, hojeISO } from "@/lib/format";
+import { mensagemErroBanco } from "@/lib/firebase";
 import { PERIODOS, intervaloDoPeriodo, type PeriodoId } from "@/lib/periodos";
 
 type Situacao = "abertos" | "finalizados" | "todos";
+
+interface Filtros {
+  situacao: Situacao;
+  tipo: Modelo | "todos";
+  periodo: PeriodoId;
+  datas: { de: string; ate: string };
+  busca: string;
+}
+
+const FILTROS_INICIAIS: Filtros = {
+  situacao: "abertos",
+  tipo: "todos",
+  periodo: "mes",
+  datas: { de: "", ate: "" },
+  busca: "",
+};
 
 const metrosDe = (c: CalculoSalvo) => c.resultado.metrosGeral ?? c.resultado.metrosRolo ?? c.resultado.metrosTotal;
 const diaDe = (c: CalculoSalvo) => hojeISO(new Date(c.criadoEm));
@@ -35,31 +53,35 @@ const diaDe = (c: CalculoSalvo) => hojeISO(new Date(c.criadoEm));
 export default function ServicosPage() {
   const toast = useToast();
   const router = useRouter();
-  const servicos = useCalculos();
-  const { itens: lancamentos } = useLancamentos();
+  const confirmar = useConfirmar();
 
-  const [situacao, setSituacao] = useState<Situacao>("abertos");
-  const [tipo, setTipo] = useState<Modelo | "todos">("todos");
-  const [periodo, setPeriodo] = useState<PeriodoId>("tudo");
-  const [datas, setDatas] = useState({ de: "", ate: "" });
-  const [busca, setBusca] = useState("");
+  // rascunho dos filtros: só vai ao banco quando toca em Buscar
+  const [f, setF] = useState<Filtros>(FILTROS_INICIAIS);
+  const [aplicado, setAplicado] = useState<Filtros | null>(null);
+  const muda = <K extends keyof Filtros>(k: K, v: Filtros[K]) => setF((x) => ({ ...x, [k]: v }));
+  const { situacao, tipo, periodo, datas, busca } = f;
+
+  const intervaloAplicado = useMemo(
+    () => (aplicado ? intervaloDoPeriodo(aplicado.periodo, aplicado.datas) : null),
+    [aplicado],
+  );
+  const { itens: servicos, carregando, erro, buscou } = useCalculos(intervaloAplicado);
+  const pendente = !aplicado || JSON.stringify(aplicado) !== JSON.stringify(f);
+  const buscar = () => setAplicado({ ...f, datas: { ...f.datas } });
+
   const [aberto, setAberto] = useState<CalculoSalvo | null>(null);
 
-  const intervalo = useMemo(() => intervaloDoPeriodo(periodo, datas), [periodo, datas]);
-
   const filtrados = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    return servicos.filter((c) => {
-      const dia = diaDe(c);
-      return (
-        (situacao === "todos" || (situacao === "abertos" ? statusDe(c) === "aberto" : statusDe(c) === "finalizado")) &&
-        (tipo === "todos" || c.tipo === tipo) &&
-        (!intervalo.de || dia >= intervalo.de) &&
-        (!intervalo.ate || dia <= intervalo.ate) &&
-        (!t || (c.cliente || "sem referência").toLowerCase().includes(t))
-      );
-    });
-  }, [servicos, situacao, tipo, intervalo, busca]);
+    if (!aplicado) return [];
+    const t = aplicado.busca.trim().toLowerCase();
+    return servicos.filter(
+      (c) =>
+        (aplicado.situacao === "todos" ||
+          (aplicado.situacao === "abertos" ? statusDe(c) === "aberto" : statusDe(c) === "finalizado")) &&
+        (aplicado.tipo === "todos" || c.tipo === aplicado.tipo) &&
+        (!t || (c.cliente || "sem referência").toLowerCase().includes(t)),
+    );
+  }, [servicos, aplicado]);
 
   const resumo = useMemo(() => {
     let abertos = 0, aReceber = 0, finalizados = 0, recebido = 0;
@@ -78,7 +100,39 @@ export default function ServicosPage() {
   const alternar = useCallback(
     async (c: CalculoSalvo) => {
       const finalizar = statusDe(c) === "aberto";
-      await definirFinalizado(c, finalizar);
+      const quem = c.cliente || "Sem referência";
+      const ok = await confirmar(
+        finalizar
+          ? {
+              titulo: "Finalizar serviço?",
+              mensagem: (
+                <>
+                  <b>{quem}</b>
+                  {c.valor ? <> · {formatBRL(c.valor)}</> : null}
+                  <br />O valor vai para <b>recebido</b> no Financeiro.
+                </>
+              ),
+              confirmar: "Finalizar",
+              tom: "ok",
+            }
+          : {
+              titulo: "Reabrir serviço?",
+              mensagem: (
+                <>
+                  <b>{quem}</b> volta para em aberto e o valor volta para <b>a receber</b>.
+                </>
+              ),
+              confirmar: "Reabrir",
+              tom: "neutro",
+            },
+      );
+      if (!ok) return;
+      try {
+        await definirFinalizado(c, finalizar);
+      } catch (e) {
+        toast({ mensagem: `Não foi possível atualizar. ${mensagemErroBanco(e)}` });
+        return;
+      }
       setAberto(null);
       toast({
         mensagem: finalizar
@@ -87,7 +141,7 @@ export default function ServicosPage() {
         acao: { rotulo: "Desfazer", executar: () => definirFinalizado({ ...c }, !finalizar) },
       });
     },
-    [toast],
+    [toast, confirmar],
   );
 
   function abrirCalculo(c: CalculoSalvo) {
@@ -100,8 +154,26 @@ export default function ServicosPage() {
   }
 
   async function excluir(c: CalculoSalvo) {
-    const lanc = lancamentos.find((l) => l.id === c.lancamentoId) ?? null;
-    const desfazer = await excluirServico(c, lanc);
+    const ok = await confirmar({
+      titulo: "Excluir serviço?",
+      mensagem: (
+        <>
+          <b>{c.cliente || "Sem referência"}</b>
+          {c.valor ? <> · {formatBRL(c.valor)}</> : null}
+          <br />O lançamento dele no Financeiro também será apagado.
+        </>
+      ),
+      confirmar: "Excluir",
+      tom: "perigo",
+    });
+    if (!ok) return;
+    let desfazer: () => Promise<void>;
+    try {
+      desfazer = await excluirServico(c);
+    } catch (e) {
+      toast({ mensagem: `Não foi possível excluir. ${mensagemErroBanco(e)}` });
+      return;
+    }
     setAberto(null);
     toast({ mensagem: "Serviço excluído", acao: { rotulo: "Desfazer", executar: desfazer } });
   }
@@ -112,6 +184,7 @@ export default function ServicosPage() {
     <>
       <Cabecalho titulo="Serviços" subtitulo="Toldos salvos e entregas" />
 
+      {buscou && (
       <section className="resumo resumo-servicos" aria-label="Resumo dos serviços">
         <div>
           <span>Em aberto</span>
@@ -124,6 +197,7 @@ export default function ServicosPage() {
           <small>{formatBRL(resumo.recebido)} recebido</small>
         </div>
       </section>
+      )}
 
       <section className="filtros" aria-label="Filtros">
         <div className="linha-filtros">
@@ -141,7 +215,7 @@ export default function ServicosPage() {
                 role="radio"
                 aria-checked={situacao === id}
                 className={situacao === id ? "ativo" : undefined}
-                onClick={() => setSituacao(id)}
+                onClick={() => muda("situacao", id)}
               >
                 {nome}
               </button>
@@ -157,7 +231,7 @@ export default function ServicosPage() {
               role="radio"
               aria-checked={tipo === t}
               className={tipo === t ? "ativo" : undefined}
-              onClick={() => setTipo(t)}
+              onClick={() => muda("tipo", t)}
             >
               {t === "todos" ? "Todos os tipos" : NOME_TIPO[t]}
             </button>
@@ -172,7 +246,7 @@ export default function ServicosPage() {
               role="radio"
               aria-checked={periodo === p.id}
               className={periodo === p.id ? "ativo" : undefined}
-              onClick={() => setPeriodo(p.id)}
+              onClick={() => muda("periodo", p.id)}
             >
               {p.nome}
             </button>
@@ -182,11 +256,11 @@ export default function ServicosPage() {
           <div className="datas">
             <label className="campo">
               <span>De</span>
-              <input type="date" value={datas.de} onChange={(e) => setDatas((d) => ({ ...d, de: e.target.value }))} />
+              <input type="date" value={datas.de} onChange={(e) => muda("datas", { ...datas, de: e.target.value })} />
             </label>
             <label className="campo">
               <span>Até</span>
-              <input type="date" value={datas.ate} onChange={(e) => setDatas((d) => ({ ...d, ate: e.target.value }))} />
+              <input type="date" value={datas.ate} onChange={(e) => muda("datas", { ...datas, ate: e.target.value })} />
             </label>
           </div>
         )}
@@ -198,17 +272,41 @@ export default function ServicosPage() {
               type="search"
               placeholder="Buscar cliente"
               value={busca}
-              onChange={(e) => setBusca(e.target.value)}
+              onChange={(e) => muda("busca", e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && buscar()}
+              enterKeyHint="search"
               aria-label="Buscar pelo cliente"
             />
           </label>
         </div>
       </section>
 
-      {filtrados.length === 0 ? (
+      <button
+        type="button"
+        className={`botao-principal botao-buscar${buscou && pendente ? " pendente" : ""}`}
+        onClick={buscar}
+        disabled={carregando}
+      >
+        <LuSearch aria-hidden /> {carregando ? "Buscando…" : "Buscar"}
+      </button>
+      {buscou && pendente && <p className="aviso-buscar">Filtros mudaram. Toque em Buscar para atualizar.</p>}
+
+      {erro && <p className="erro caixa" role="alert">{erro}</p>}
+
+      {!buscou ? (
+        <section className="antes-de-buscar">
+          <LuListFilter aria-hidden />
+          <p>Escolha os filtros e toque em Buscar</p>
+          <small>Os serviços só são carregados quando você buscar.</small>
+        </section>
+      ) : carregando ? (
+        <div className="lista-esqueleto" aria-busy="true">
+          {[0, 1, 2].map((i) => <div key={i} />)}
+        </div>
+      ) : filtrados.length === 0 ? (
         <section className="vazio">
           <LuClipboardList aria-hidden />
-          <p>{servicos.length === 0 ? "Nenhum serviço salvo ainda." : "Nenhum serviço com esses filtros."}</p>
+          <p>{servicos.length === 0 ? "Nenhum serviço nesse período." : "Nenhum serviço com esses filtros."}</p>
           <small>Faça um cálculo de toldo e use “Salvar serviço” no final.</small>
         </section>
       ) : (

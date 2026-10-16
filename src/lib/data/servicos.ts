@@ -100,11 +100,23 @@ export async function editarServico(c: CalculoSalvo, dados: { cliente: string; v
 }
 
 /** exclui o serviço e o lançamento ligado; devolve uma função para desfazer */
-export async function excluirServico(c: CalculoSalvo, lancamento?: Lancamento | null) {
+export async function excluirServico(c: CalculoSalvo) {
+  // guarda uma cópia do lançamento para o "Desfazer"
+  const lancamento = c.lancamentoId ? await lancamentosRepo.obter(c.lancamentoId).catch(() => null) : null;
   await calculosRepo.excluir(c.id);
   if (c.lancamentoId) await lancamentosRepo.excluir(c.lancamentoId).catch(() => {});
   return async () => {
     await calculosRepo.restaurar(c);
     if (lancamento) await lancamentosRepo.restaurar(lancamento);
+  };
+}
+
+/** exclui pelo financeiro um lançamento de serviço: apaga o serviço junto */
+export async function excluirServicoDoLancamento(l: Lancamento) {
+  const c = l.servicoId ? await calculosRepo.obter(l.servicoId).catch(() => null) : null;
+  if (c) return excluirServico({ ...c, lancamentoId: l.id });
+  await lancamentosRepo.excluir(l.id);
+  return async () => {
+    await lancamentosRepo.restaurar(l);
   };
 }

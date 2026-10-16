@@ -41,19 +41,25 @@ dados ficam salvos só no navegador do aparelho.
 **Serviços**
 - Ao salvar um cálculo com cliente e valor, ele vira um serviço "em aberto" e entra no
   Financeiro como **a receber**.
-- Na página Serviços: filtros (em aberto/finalizados, tipo, período, busca), editar cliente/valor,
-  abrir o cálculo, excluir e **finalizar**. Finalizar marca o valor como **recebido** no Financeiro
+- Na página Serviços: escolha os filtros (em aberto/finalizados, tipo, período, cliente) e toque em
+  **Buscar**; editar cliente/valor, abrir o cálculo, excluir e **finalizar**. Finalizar marca o valor como **recebido** no Financeiro
   (e reabrir volta para a receber).
 
 **Financeiro**
 - Entradas (serviços e entradas avulsas) e saídas (compras).
 - Resumo do período: saldo, a receber, recebido, a pagar e pago (toque num cartão para filtrar).
-- Filtros: período, tipo (tudo/entradas/saídas), situação (pendentes/quitados), busca e ordenação.
+- Escolha o período (e a busca) e toque em **Buscar**. Toque num cartão do resumo para ver só aqueles lançamentos.
+- Excluir: toque no lançamento e use "Excluir" no fim. Excluir um lançamento de serviço apaga o serviço junto.
 - Marcar como recebido um lançamento de serviço também finaliza o serviço.
 
 **Login**
 - Sem Firebase: modo de teste com usuário `adm` e senha `123`.
 - Com Firebase: e-mail e senha do usuário criado em Authentication.
+
+**Confirmação e economia de leituras**
+- Finalizar/reabrir serviço, marcar como pago/recebido e excluir pedem confirmação numa janela.
+- Serviços e Financeiro não leem nada do banco ao abrir: só quando toca em **Buscar**, e só o período
+  escolhido (filtro feito no próprio Firestore). Repetir a mesma busca não lê de novo.
 
 ## Banco de dados (Firestore)
 

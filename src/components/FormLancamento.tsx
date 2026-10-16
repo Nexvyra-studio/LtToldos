@@ -83,8 +83,8 @@ export function FormLancamento({ inicial, tipoInicial = "despesa", sugestoes, on
       )}
       {deServico && (
         <p className="aviso-servico">
-          Lançamento de um serviço de toldo. O cliente e a exclusão ficam na página <b>Serviços</b>; marcar como
-          recebido aqui também finaliza o serviço.
+          Lançamento de um serviço de toldo. O cliente fica na página <b>Serviços</b>; marcar como recebido aqui
+          também finaliza o serviço.
         </p>
       )}
 
@@ -165,9 +165,9 @@ export function FormLancamento({ inicial, tipoInicial = "despesa", sugestoes, on
         {enviando ? "Salvando…" : inicial ? "Salvar alterações" : receita ? "Salvar entrada" : "Salvar compra"}
       </button>
 
-      {onExcluir && !deServico && (
+      {onExcluir && (
         <button type="button" className="botao-perigo" onClick={onExcluir}>
-          <LuTrash2 aria-hidden /> Excluir lançamento
+          <LuTrash2 aria-hidden /> {deServico ? "Excluir serviço" : "Excluir lançamento"}
         </button>
       )}
     </form>

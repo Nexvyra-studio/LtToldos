@@ -1110,3 +1110,46 @@ rect.cd-linha { stroke-dasharray: 100; animation: risca 0.6s ease-out; }
   font-size: 0.88rem; color: var(--tinta-2);
   background: var(--lona-clara); border-radius: var(--raio-m); padding: 10px 12px;
 }
+
+/* ============================================================
+   Janela de confirmação (evita toque errado)
+   ============================================================ */
+.confirmar-raiz { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; }
+.confirmar-fundo { position: absolute; inset: 0; background: rgb(10 20 35 / 0.55); animation: fundo 0.18s ease-out; }
+.confirmar {
+  position: relative; width: 100%; max-width: 380px;
+  background: var(--papel); border-radius: 24px; padding: 24px 20px 18px;
+  text-align: center; box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.5);
+  animation: confirmar-entra 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes confirmar-entra { from { opacity: 0; transform: scale(0.92) translateY(8px); } }
+.confirmar-icone {
+  display: grid; place-items: center; width: 56px; height: 56px; margin: 0 auto 12px;
+  border-radius: 50%; font-size: 1.6rem;
+}
+.confirmar-ok .confirmar-icone { background: color-mix(in srgb, var(--entrada) 15%, transparent); color: var(--entrada); }
+.confirmar-perigo .confirmar-icone { background: color-mix(in srgb, var(--perigo) 14%, transparent); color: var(--perigo); }
+.confirmar-neutro .confirmar-icone { background: color-mix(in srgb, var(--sol) 18%, transparent); color: var(--sol); }
+.confirmar h2 { font-family: var(--fonte-display); font-weight: 700; font-size: 1.45rem; line-height: 1.15; }
+.confirmar-msg { margin-top: 8px; color: var(--tinta-2); font-size: 0.95rem; line-height: 1.4; }
+.confirmar-msg b { color: var(--tinta); }
+.confirmar-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+.confirmar-botoes > button { height: 50px; font-size: 1rem; }
+.botao-perigo-cheio {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 50px; border: 0; border-radius: var(--raio-m);
+  background: var(--perigo); color: #fff; font-weight: 700;
+}
+.botao-perigo-cheio:active { transform: scale(0.98); }
+
+/* ============================================================
+   Buscar: só consulta o banco quando toca no botão
+   ============================================================ */
+.botao-buscar { margin: 4px 16px 0; width: calc(100% - 32px); }
+.botao-buscar.pendente { animation: pulsa 1.6s ease-in-out infinite; }
+@keyframes pulsa { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--lona) 22%, transparent); } }
+.aviso-buscar { margin: 10px 16px 0; font-size: 0.82rem; color: var(--tinta-2); text-align: center; }
+.antes-de-buscar { text-align: center; padding: 34px 24px; color: var(--tinta-2); }
+.antes-de-buscar svg { font-size: 2.4rem; color: var(--lona); opacity: 0.8; }
+.antes-de-buscar p { margin-top: 8px; font-weight: 700; color: var(--tinta); }
+.antes-de-buscar small { display: block; margin-top: 4px; }

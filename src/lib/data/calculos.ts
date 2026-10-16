@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { EntradaCortina, Modelo, ResultadoCortina } from "../calc/cortina";
-import { COLECOES } from "../firebase";
-import { criarRepo } from "./repo";
+import { COLECOES, mensagemErroBanco } from "../firebase";
+import { criarRepo, useConsulta } from "./repo";
 
 export interface CalculoSalvo {
   id: string;
@@ -30,8 +29,15 @@ export const calculosRepo = criarRepo<CalculoSalvo>(
   (a, b) => b.criadoEm - a.criadoEm,
 );
 
-export function useCalculos() {
-  const [itens, setItens] = useState<CalculoSalvo[]>([]);
-  useEffect(() => calculosRepo.subscribe(setItens, (e) => console.error("[Firestore] calculos", e)), []);
-  return itens;
+/** serviços salvos no período (dias yyyy-mm-dd, pelo `criadoEm`); null = ainda não buscou */
+export function useCalculos(periodo: { de: string | null; ate: string | null } | null) {
+  const faixa = periodo
+    ? {
+        campo: "criadoEm",
+        de: periodo.de ? new Date(`${periodo.de}T00:00:00`).getTime() : null,
+        ate: periodo.ate ? new Date(`${periodo.ate}T23:59:59.999`).getTime() : null,
+      }
+    : null;
+  const r = useConsulta(calculosRepo, faixa);
+  return { ...r, erro: r.erro ? mensagemErroBanco(r.erro) : null };
 }
