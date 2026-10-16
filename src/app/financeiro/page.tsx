@@ -16,6 +16,7 @@ import { FormLancamento, type DadosForm } from "@/components/FormLancamento";
 import { Sheet } from "@/components/Sheet";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
+import { mensagemErroBanco } from "@/lib/firebase";
 import { calculosRepo } from "@/lib/data/calculos";
 import { lancamentosRepo, tipoDe, useLancamentos, type Lancamento } from "@/lib/data/lancamentos";
 import { sincronizarDoFinanceiro } from "@/lib/data/servicos";
@@ -155,8 +156,8 @@ export default function FinanceiroPage() {
       const pago = !l.pago;
       try {
         await definirPago(l, pago, pago ? hojeISO() : null);
-      } catch {
-        toast({ mensagem: "Não foi possível atualizar. Confira a conexão." });
+      } catch (e) {
+        toast({ mensagem: `Não foi possível atualizar. ${mensagemErroBanco(e)}` });
         return;
       }
       const r = ehReceita(l);
@@ -189,8 +190,8 @@ export default function FinanceiroPage() {
         mensagem: `${d.tipo === "receita" ? "Entrada" : "Compra"} de ${formatBRL(d.valor)} salva`,
         acao: { rotulo: "Desfazer", executar: () => lancamentosRepo.excluir(id) },
       });
-    } catch {
-      toast({ mensagem: "Não foi possível salvar. Confira a conexão." });
+    } catch (e) {
+      toast({ mensagem: `Não foi possível salvar. ${mensagemErroBanco(e)}` });
     }
   }
 
@@ -217,8 +218,8 @@ export default function FinanceiroPage() {
       }
       setEditando(null);
       toast({ mensagem: "Alterações salvas" });
-    } catch {
-      toast({ mensagem: "Não foi possível salvar. Confira a conexão." });
+    } catch (e) {
+      toast({ mensagem: `Não foi possível salvar. ${mensagemErroBanco(e)}` });
     }
   }
 

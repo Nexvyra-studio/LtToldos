@@ -22,6 +22,7 @@ import {
 } from "@/lib/calc/cortina";
 import { statusDe, useCalculos, type CalculoSalvo } from "@/lib/data/calculos";
 import { CHAVE_ABRIR, salvarServico } from "@/lib/data/servicos";
+import { mensagemErroBanco } from "@/lib/firebase";
 import { centavosParaTexto, formatBRL, formatM, formatMetros, formatNum, parseValor } from "@/lib/format";
 
 function lerRoloSalvo() {
@@ -159,8 +160,8 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
         mensagem: `Serviço salvo. ${formatBRL(valor)} a receber`,
         acao: { rotulo: "Ver", executar: () => router.push("/servicos") },
       });
-    } catch {
-      toast({ mensagem: "Não foi possível salvar. Confira a conexão." });
+    } catch (e) {
+      toast({ mensagem: `Não foi possível salvar. ${mensagemErroBanco(e)}` });
     } finally {
       setSalvando(false);
     }
