@@ -1153,3 +1153,5 @@ rect.cd-linha { stroke-dasharray: 100; animation: risca 0.6s ease-out; }
 .antes-de-buscar svg { font-size: 2.4rem; color: var(--lona); opacity: 0.8; }
 .antes-de-buscar p { margin-top: 8px; font-weight: 700; color: var(--tinta); }
 .antes-de-buscar small { display: block; margin-top: 4px; }
+.datas-busca { padding-top: 2px; }
+.aviso-datas { margin: -4px 16px 10px; }

@@ -44,3 +44,17 @@ export function intervaloDoPeriodo(
       return { de: null, ate: null };
   }
 }
+
+/** datas que já vêm preenchidas: do dia 1º do mês até hoje */
+export function datasPadrao(): { de: string; ate: string } {
+  const hoje = new Date();
+  return { de: hojeISO(new Date(hoje.getFullYear(), hoje.getMonth(), 1)), ate: hojeISO(hoje) };
+}
+
+/** datas digitadas -> intervalo da busca (campo vazio = sem limite) */
+export function intervaloDasDatas(d: { de: string; ate: string }) {
+  return { de: d.de || null, ate: d.ate || null };
+}
+
+/** true quando a data inicial é depois da final */
+export const datasInvertidas = (d: { de: string; ate: string }) => !!d.de && !!d.ate && d.de > d.ate;

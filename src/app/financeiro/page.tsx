@@ -23,7 +23,7 @@ import { calculosRepo } from "@/lib/data/calculos";
 import { lancamentosRepo, tipoDe, useLancamentos, type Lancamento } from "@/lib/data/lancamentos";
 import { excluirServicoDoLancamento, sincronizarDoFinanceiro } from "@/lib/data/servicos";
 import { formatBRL, formatDataCurta, formatDataGrupo, hojeISO } from "@/lib/format";
-import { PERIODOS, intervaloDoPeriodo, type PeriodoId } from "@/lib/periodos";
+import { datasInvertidas, datasPadrao, intervaloDasDatas } from "@/lib/periodos";
 
 /** um único filtro: tudo ou um dos 4 cartões do resumo */
 type Ver = "tudo" | "aReceber" | "recebido" | "aPagar" | "pago";
@@ -69,21 +69,20 @@ export default function FinanceiroPage() {
   const confirmar = useConfirmar();
 
   // rascunho do período e da busca: só vai ao banco quando toca em Buscar
-  const [periodo, setPeriodo] = useState<PeriodoId>("mes");
-  const [datas, setDatas] = useState({ de: "", ate: "" });
+  const [datas, setDatas] = useState(datasPadrao);
   const [busca, setBusca] = useState("");
-  const [aplicado, setAplicado] = useState<{ periodo: PeriodoId; datas: { de: string; ate: string }; busca: string } | null>(null);
+  const [aplicado, setAplicado] = useState<{ datas: { de: string; ate: string }; busca: string } | null>(null);
   const intervaloAplicado = useMemo(
-    () => (aplicado ? intervaloDoPeriodo(aplicado.periodo, aplicado.datas) : null),
+    () => (aplicado ? intervaloDasDatas(aplicado.datas) : null),
     [aplicado],
   );
   const { itens, carregando, erro, buscou } = useLancamentos(intervaloAplicado);
   const pendente =
     !aplicado ||
-    aplicado.periodo !== periodo ||
     aplicado.busca !== busca ||
-    (periodo === "personalizado" && (aplicado.datas.de !== datas.de || aplicado.datas.ate !== datas.ate));
-  const buscar = () => setAplicado({ periodo, datas: { ...datas }, busca });
+    aplicado.datas.de !== datas.de ||
+    aplicado.datas.ate !== datas.ate;
+  const buscar = () => setAplicado({ datas: { ...datas }, busca });
 
   const [ver, setVer] = useState<Ver>("tudo");
   const [ordem, setOrdem] = useState<Ordem>("recentes");
@@ -360,32 +359,17 @@ export default function FinanceiroPage() {
       )}
 
       <section className="filtros" aria-label="Filtros">
-        <div className="chips" role="radiogroup" aria-label="Período">
-          {PERIODOS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              role="radio"
-              aria-checked={periodo === p.id}
-              className={periodo === p.id ? "ativo" : undefined}
-              onClick={() => setPeriodo(p.id)}
-            >
-              {p.nome}
-            </button>
-          ))}
+        <div className="datas datas-busca">
+          <label className="campo">
+            <span>De</span>
+            <input type="date" value={datas.de} max={datas.ate || undefined} onChange={(e) => setDatas((d) => ({ ...d, de: e.target.value }))} />
+          </label>
+          <label className="campo">
+            <span>Até</span>
+            <input type="date" value={datas.ate} min={datas.de || undefined} onChange={(e) => setDatas((d) => ({ ...d, ate: e.target.value }))} />
+          </label>
         </div>
-        {periodo === "personalizado" && (
-          <div className="datas">
-            <label className="campo">
-              <span>De</span>
-              <input type="date" value={datas.de} onChange={(e) => setDatas((d) => ({ ...d, de: e.target.value }))} />
-            </label>
-            <label className="campo">
-              <span>Até</span>
-              <input type="date" value={datas.ate} onChange={(e) => setDatas((d) => ({ ...d, ate: e.target.value }))} />
-            </label>
-          </div>
-        )}
+        {datasInvertidas(datas) && <p className="erro aviso-datas">A data "De" está depois da data "Até".</p>}
 
         <div className="linha-filtros">
           <label className="busca busca-larga">
@@ -423,7 +407,7 @@ export default function FinanceiroPage() {
         type="button"
         className={`botao-principal botao-buscar${buscou && pendente ? " pendente" : ""}`}
         onClick={buscar}
-        disabled={carregando}
+        disabled={carregando || datasInvertidas(datas)}
       >
         <LuSearch aria-hidden /> {carregando ? "Buscando…" : "Buscar"}
       </button>
@@ -434,7 +418,7 @@ export default function FinanceiroPage() {
       {!buscou ? (
         <section className="antes-de-buscar">
           <LuListFilter aria-hidden />
-          <p>Escolha o período e toque em Buscar</p>
+          <p>Escolha as datas e toque em Buscar</p>
           <small>Os lançamentos só são carregados quando você buscar. Para lançar algo novo, toque em +.</small>
         </section>
       ) : carregando ? (

@@ -27,25 +27,23 @@ import {
 } from "@/lib/data/servicos";
 import { centavosParaTexto, formatBRL, formatDataCurta, formatM, formatNum, hojeISO } from "@/lib/format";
 import { mensagemErroBanco } from "@/lib/firebase";
-import { PERIODOS, intervaloDoPeriodo, type PeriodoId } from "@/lib/periodos";
+import { datasInvertidas, datasPadrao, intervaloDasDatas } from "@/lib/periodos";
 
 type Situacao = "abertos" | "finalizados" | "todos";
 
 interface Filtros {
   situacao: Situacao;
   tipo: Modelo | "todos";
-  periodo: PeriodoId;
   datas: { de: string; ate: string };
   busca: string;
 }
 
-const FILTROS_INICIAIS: Filtros = {
+const filtrosIniciais = (): Filtros => ({
   situacao: "abertos",
   tipo: "todos",
-  periodo: "mes",
-  datas: { de: "", ate: "" },
+  datas: datasPadrao(),
   busca: "",
-};
+});
 
 const metrosDe = (c: CalculoSalvo) => c.resultado.metrosGeral ?? c.resultado.metrosRolo ?? c.resultado.metrosTotal;
 const diaDe = (c: CalculoSalvo) => hojeISO(new Date(c.criadoEm));
@@ -56,13 +54,13 @@ export default function ServicosPage() {
   const confirmar = useConfirmar();
 
   // rascunho dos filtros: só vai ao banco quando toca em Buscar
-  const [f, setF] = useState<Filtros>(FILTROS_INICIAIS);
+  const [f, setF] = useState<Filtros>(filtrosIniciais);
   const [aplicado, setAplicado] = useState<Filtros | null>(null);
   const muda = <K extends keyof Filtros>(k: K, v: Filtros[K]) => setF((x) => ({ ...x, [k]: v }));
-  const { situacao, tipo, periodo, datas, busca } = f;
+  const { situacao, tipo, datas, busca } = f;
 
   const intervaloAplicado = useMemo(
-    () => (aplicado ? intervaloDoPeriodo(aplicado.periodo, aplicado.datas) : null),
+    () => (aplicado ? intervaloDasDatas(aplicado.datas) : null),
     [aplicado],
   );
   const { itens: servicos, carregando, erro, buscou } = useCalculos(intervaloAplicado);
@@ -238,32 +236,17 @@ export default function ServicosPage() {
           ))}
         </div>
 
-        <div className="chips" role="radiogroup" aria-label="Período">
-          {PERIODOS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              role="radio"
-              aria-checked={periodo === p.id}
-              className={periodo === p.id ? "ativo" : undefined}
-              onClick={() => muda("periodo", p.id)}
-            >
-              {p.nome}
-            </button>
-          ))}
+        <div className="datas datas-busca">
+          <label className="campo">
+            <span>De</span>
+            <input type="date" value={datas.de} max={datas.ate || undefined} onChange={(e) => muda("datas", { ...datas, de: e.target.value })} />
+          </label>
+          <label className="campo">
+            <span>Até</span>
+            <input type="date" value={datas.ate} min={datas.de || undefined} onChange={(e) => muda("datas", { ...datas, ate: e.target.value })} />
+          </label>
         </div>
-        {periodo === "personalizado" && (
-          <div className="datas">
-            <label className="campo">
-              <span>De</span>
-              <input type="date" value={datas.de} onChange={(e) => muda("datas", { ...datas, de: e.target.value })} />
-            </label>
-            <label className="campo">
-              <span>Até</span>
-              <input type="date" value={datas.ate} onChange={(e) => muda("datas", { ...datas, ate: e.target.value })} />
-            </label>
-          </div>
-        )}
+        {datasInvertidas(datas) && <p className="erro aviso-datas">A data "De" está depois da data "Até".</p>}
 
         <div className="linha-filtros">
           <label className="busca busca-larga">
@@ -285,7 +268,7 @@ export default function ServicosPage() {
         type="button"
         className={`botao-principal botao-buscar${buscou && pendente ? " pendente" : ""}`}
         onClick={buscar}
-        disabled={carregando}
+        disabled={carregando || datasInvertidas(datas)}
       >
         <LuSearch aria-hidden /> {carregando ? "Buscando…" : "Buscar"}
       </button>
