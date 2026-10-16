@@ -23,8 +23,23 @@ import { sincronizarDoFinanceiro } from "@/lib/data/servicos";
 import { formatBRL, formatDataCurta, formatDataGrupo, hojeISO } from "@/lib/format";
 import { PERIODOS, intervaloDoPeriodo, type PeriodoId } from "@/lib/periodos";
 
-type FiltroTipo = "tudo" | "entradas" | "saidas";
-type FiltroSituacao = "todos" | "pendentes" | "quitados";
+/** um único filtro: tudo ou um dos 4 cartões do resumo */
+type Ver = "tudo" | "aReceber" | "recebido" | "aPagar" | "pago";
+const NOME_VER: Record<Ver, string> = {
+  tudo: "Tudo",
+  aReceber: "A receber",
+  recebido: "Recebido",
+  aPagar: "A pagar",
+  pago: "Pago",
+};
+function passa(l: Lancamento, ver: Ver) {
+  if (ver === "tudo") return true;
+  const r = tipoDe(l) === "receita";
+  if (ver === "aReceber") return r && !l.pago;
+  if (ver === "recebido") return r && l.pago;
+  if (ver === "aPagar") return !r && !l.pago;
+  return !r && l.pago;
+}
 type Ordem = "recentes" | "antigos" | "maior" | "menor";
 
 const ehReceita = (l: Lancamento) => tipoDe(l) === "receita";
@@ -53,8 +68,7 @@ export default function FinanceiroPage() {
 
   const [periodo, setPeriodo] = useState<PeriodoId>("mes");
   const [datas, setDatas] = useState({ de: "", ate: "" });
-  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>("tudo");
-  const [situacao, setSituacao] = useState<FiltroSituacao>("todos");
+  const [ver, setVer] = useState<Ver>("tudo");
   const [ordem, setOrdem] = useState<Ordem>("recentes");
   const [busca, setBusca] = useState("");
   const [novoAberto, setNovoAberto] = useState(false);
@@ -92,11 +106,7 @@ export default function FinanceiroPage() {
   }, [doPeriodo]);
 
   const visiveis = useMemo(() => {
-    const lista = doPeriodo.filter(
-      (l) =>
-        (filtroTipo === "tudo" || (filtroTipo === "entradas" ? ehReceita(l) : !ehReceita(l))) &&
-        (situacao === "todos" || (situacao === "quitados" ? l.pago : !l.pago)),
-    );
+    const lista = doPeriodo.filter((l) => passa(l, ver));
     const porData = (a: Lancamento, b: Lancamento) =>
       a.data === b.data ? b.criadoEm - a.criadoEm : a.data < b.data ? 1 : -1;
     switch (ordem) {
@@ -109,7 +119,7 @@ export default function FinanceiroPage() {
       default:
         return [...lista].sort(porData);
     }
-  }, [doPeriodo, filtroTipo, situacao, ordem]);
+  }, [doPeriodo, ver, ordem]);
 
   const agrupar = ordem === "recentes" || ordem === "antigos";
   const grupos = useMemo(() => {
@@ -138,10 +148,17 @@ export default function FinanceiroPage() {
   }, [itens]);
 
   const filtrosAtivos =
-    (filtroTipo !== "tudo" ? 1 : 0) + (situacao !== "todos" ? 1 : 0) + (busca.trim() ? 1 : 0) + (ordem !== "recentes" ? 1 : 0);
+    (ver !== "tudo" ? 1 : 0) + (busca.trim() ? 1 : 0) + (ordem !== "recentes" ? 1 : 0);
+  /** toca no cartão: filtra; toca de novo: mostra tudo */
+  const alternarVer = (v: Ver) => setVer((atual) => (atual === v ? "tudo" : v));
+  const cartao = (v: Ver, extra: string) => ({
+    type: "button" as const,
+    className: `mini ${extra}${ver === v ? " ativo" : ""}`,
+    "aria-pressed": ver === v,
+    onClick: () => alternarVer(v),
+  });
   function limparFiltros() {
-    setFiltroTipo("tudo");
-    setSituacao("todos");
+    setVer("tudo");
     setBusca("");
     setOrdem("recentes");
   }
@@ -263,22 +280,23 @@ export default function FinanceiroPage() {
           <span className="b-entrada" style={{ width: `${pctEntrada}%` }} />
           <span className="b-saida" style={{ width: `${100 - pctEntrada}%` }} />
         </div>
+        <p className="dica-cartoes">Toque num cartão para ver só aqueles lançamentos</p>
         <div className="resumo-grade">
-          <button type="button" className="mini entrada" onClick={() => { setFiltroTipo("entradas"); setSituacao("pendentes"); }}>
+          <button {...cartao("aReceber", "entrada")}>
             <span><LuArrowDownLeft aria-hidden /> A receber</span>
             <strong>{formatBRL(totais.aReceber)}</strong>
             <small>{totais.nReceber} {totais.nReceber === 1 ? "pendente" : "pendentes"}</small>
           </button>
-          <button type="button" className="mini entrada" onClick={() => { setFiltroTipo("entradas"); setSituacao("quitados"); }}>
+          <button {...cartao("recebido", "entrada")}>
             <span><LuCheck aria-hidden /> Recebido</span>
             <strong>{formatBRL(totais.recebido)}</strong>
           </button>
-          <button type="button" className="mini saida" onClick={() => { setFiltroTipo("saidas"); setSituacao("pendentes"); }}>
+          <button {...cartao("aPagar", "saida")}>
             <span><LuArrowUpRight aria-hidden /> A pagar</span>
             <strong>{formatBRL(totais.aPagar)}</strong>
             <small>{totais.nPagar} {totais.nPagar === 1 ? "pendente" : "pendentes"}</small>
           </button>
-          <button type="button" className="mini saida" onClick={() => { setFiltroTipo("saidas"); setSituacao("quitados"); }}>
+          <button {...cartao("pago", "saida")}>
             <span><LuCheck aria-hidden /> Pago</span>
             <strong>{formatBRL(totais.pago)}</strong>
           </button>
@@ -312,52 +330,6 @@ export default function FinanceiroPage() {
             </label>
           </div>
         )}
-
-        <div className="linha-filtros">
-          <div className="segmentado compacto" role="radiogroup" aria-label="Tipo">
-            {(
-              [
-                ["tudo", "Tudo"],
-                ["entradas", "Entradas"],
-                ["saidas", "Saídas"],
-              ] as [FiltroTipo, string][]
-            ).map(([id, nome]) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={filtroTipo === id}
-                className={filtroTipo === id ? "ativo" : undefined}
-                onClick={() => setFiltroTipo(id)}
-              >
-                {nome}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="linha-filtros">
-          <div className="segmentado compacto" role="radiogroup" aria-label="Situação">
-            {(
-              [
-                ["todos", "Todos"],
-                ["pendentes", "Pendentes"],
-                ["quitados", "Quitados"],
-              ] as [FiltroSituacao, string][]
-            ).map(([id, nome]) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={situacao === id}
-                className={situacao === id ? "ativo" : undefined}
-                onClick={() => setSituacao(id)}
-              >
-                {nome}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <div className="linha-filtros">
           <label className="busca busca-larga">
@@ -405,6 +377,7 @@ export default function FinanceiroPage() {
         <div className="lancamentos">
           <p className="contagem">
             {visiveis.length} {visiveis.length === 1 ? "lançamento" : "lançamentos"}
+            {ver !== "tudo" && <> · {NOME_VER[ver]}</>}
           </p>
           {grupos.map(([data, lista]) => {
             const liquido = lista.reduce((s, l) => s + (ehReceita(l) ? l.valor : -l.valor), 0);
@@ -466,7 +439,7 @@ export default function FinanceiroPage() {
         <FormLancamento
           sugestoes={sugestoes}
           onSalvar={criar}
-          tipoInicial={filtroTipo === "entradas" ? "receita" : "despesa"}
+          tipoInicial={ver === "aReceber" || ver === "recebido" ? "receita" : "despesa"}
         />
       </Sheet>
 

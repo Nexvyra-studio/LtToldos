@@ -1070,6 +1070,9 @@ rect.cd-linha { stroke-dasharray: 100; animation: risca 0.6s ease-out; }
 .mini.saida span { color: var(--saida); }
 .mini strong { font-family: var(--fonte-display); font-weight: 700; font-size: 1.3rem; color: var(--tinta); font-variant-numeric: tabular-nums; }
 .mini small { font-size: 0.75rem; color: var(--tinta-2); }
+.mini.entrada.ativo { border-color: var(--entrada); background: color-mix(in srgb, var(--entrada) 12%, var(--papel)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--entrada) 25%, transparent); }
+.mini.saida.ativo { border-color: var(--saida); background: color-mix(in srgb, var(--saida) 12%, var(--papel)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--saida) 25%, transparent); }
+.dica-cartoes { font-size: 0.78rem; color: var(--tinta-2); margin: 0 2px 8px; }
 
 .ordenar select {
   height: 46px; border: 0; border-radius: var(--raio-m); background: var(--papel);
@@ -1079,7 +1082,11 @@ rect.cd-linha { stroke-dasharray: 100; animation: risca 0.6s ease-out; }
   margin: 8px 16px 0; display: inline-flex; align-items: center; gap: 6px;
   border: 0; background: none; color: var(--lona); font-weight: 700; font-size: 0.88rem;
 }
-.contagem { font-size: 0.8rem; color: var(--tinta-2); font-weight: 600; padding: 0 6px; }
+.contagem { font-size: 0.8rem; color: var(--tinta-2); font-weight: 600; padding: 0 6px; display: flex; align-items: center; gap: 8px; }
+.filtro-ativo {
+  display: inline-flex; align-items: center; gap: 4px; border: 0; border-radius: 999px;
+  padding: 4px 10px; background: var(--azul); color: #fff; font-size: 0.78rem; font-weight: 700;
+}
 .grupo-dia h3 .pos { color: var(--entrada); }
 .grupo-dia h3 .neg { color: var(--saida); }
 .item.receita .item-valor { color: var(--entrada); }
