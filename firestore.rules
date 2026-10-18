@@ -37,7 +37,7 @@ service cloud.firestore {
     match /calculos/{id} {
       function calculoValido(d) {
         return d.keys().hasAll(['tipo', 'cliente', 'entrada', 'resultado', 'criadoEm'])
-          && d.tipo in ['cortina', 'casca', 'casca-bando', 'fixo-lateral']
+          && d.tipo in ['cortina', 'cortina-visor', 'casca', 'casca-bando', 'fixo-lateral']
           && d.cliente is string && d.cliente.size() <= 60
           && d.entrada is map
           && d.resultado is map

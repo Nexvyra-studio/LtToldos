@@ -9,9 +9,11 @@
  *  - Lona em rolo de 1,40 m: os gomos são emendados lado a lado na largura
  */
 
+import { VISOR_PADRAO, ROLO_CRISTAL_CM, VISOR_SOMA_LARGURA, calcularVisor, type EntradaVisor, type ResultadoVisor } from "./visor";
+
 export type Acabamento = "bando" | "canhao";
-export type Modelo = "cortina" | "casca" | "casca-bando" | "fixo-lateral";
-/** Laterais do Fixo com lateral: largura + 5 sempre; altura + 5 (sem bandô) ou + 30 (com bandô) */
+export type Modelo = "cortina" | "cortina-visor" | "casca" | "casca-bando" | "fixo-lateral";
+/** Laterais do Fixo com lateral: largura + 5 + 1 cm por emenda; altura + 5 (sem bandô) ou + 30 (com bandô) */
 export const LATERAL_LARGURA = 5;
 export const LATERAL_ALTURA = { semBando: 5, comBando: 30 };
 export const ACRESCIMO_CASCA = 10;
@@ -42,6 +44,8 @@ export interface EntradaCortina {
   comBando?: boolean;
   /** Fixo com lateral: medidas da ferragem da lateral (avanço e altura na parede), em cm */
   lateral?: { largura: number; altura: number } | null;
+  /** Cortina com visor: moldura de lona e rolo do cristal */
+  visor?: EntradaVisor | null;
 }
 
 export interface ResultadoLateral {
@@ -86,12 +90,18 @@ export interface ResultadoCortina {
   laterais?: ResultadoLateral | null;
   /** lona total do rolo novo: casca + laterais */
   metrosGeral?: number;
+  /** Cortina com visor: peças da moldura e do cristal (por toldo) */
+  visor?: ResultadoVisor | null;
+  /** Cortina com visor: metros de cristal × quantidade */
+  metrosCristalTotal?: number;
 }
 
 export function calcularCortina(e: EntradaCortina): ResultadoCortina | null {
   const rolo = e.rolo ?? ROLO_LONA_CM;
   if (!(e.largura > 0) || !(e.altura > 0) || !(rolo > 0)) return null;
   const quantidade = Math.max(1, Math.floor(e.quantidade || 1));
+
+  if (e.modelo === "cortina-visor") return calcularCortinaVisor(e, rolo, quantidade);
 
   const base = e.largura + SOBRA_LATERAL_CM;
 
@@ -150,11 +160,19 @@ export function calcularCortina(e: EntradaCortina): ResultadoCortina | null {
   // Fixo com lateral: 2 laterais em gomos, recortadas depois no formato da ferragem
   let laterais: ResultadoLateral | null = null;
   if (e.modelo === "fixo-lateral" && e.lateral && e.lateral.largura > 0 && e.lateral.altura > 0) {
-    const lc = round1(e.lateral.largura + LATERAL_LARGURA);
+    // largura + 5 + 1 cm por emenda (igual à casca); altura + 5 sem bandô ou + 30 com bandô
+    const baseLat = e.lateral.largura + LATERAL_LARGURA;
+    let g = Math.max(1, Math.ceil(baseLat / rolo));
+    let lc = round1(baseLat + (g - 1) * CM_POR_EMENDA);
+    while (lc > g * rolo) {
+      g += 1;
+      lc = round1(baseLat + (g - 1) * CM_POR_EMENDA);
+    }
     const ac = round1(e.lateral.altura + (e.comBando ? LATERAL_ALTURA.comBando : LATERAL_ALTURA.semBando));
-    const g = Math.max(1, Math.ceil(lc / rolo));
     const lgs: number[] = [];
     for (let i = 0; i < g; i++) lgs.push(Math.min(rolo, round1(lc - i * rolo)));
+    // a faixa cortada vai no meio, como na casca
+    if (g > 2) lgs.splice(Math.floor(g / 2), 0, lgs.pop()!);
     const porLateral = round2((g * ac) / 100);
     laterais = {
       larguraCorte: lc,
@@ -188,7 +206,36 @@ export function calcularCortina(e: EntradaCortina): ResultadoCortina | null {
 
 /** quanto soma na altura: bandô/canhão no Cortina, 10 cm fixos na Casca */
 export function acrescimoAltura(e: Pick<EntradaCortina, "modelo" | "acabamento">) {
-  return e.modelo && e.modelo !== "cortina" ? ACRESCIMO_CASCA : ACRESCIMO_ALTURA[e.acabamento];
+  return e.modelo && e.modelo !== "cortina" && e.modelo !== "cortina-visor"
+    ? ACRESCIMO_CASCA
+    : ACRESCIMO_ALTURA[e.acabamento];
+}
+
+/** Cortina com visor: largura + 15 fixos, altura igual à cortina, moldura de lona + cristal */
+function calcularCortinaVisor(e: EntradaCortina, rolo: number, quantidade: number): ResultadoCortina {
+  const larguraCorte = round1(e.largura + VISOR_SOMA_LARGURA);
+  const alturaCorte = round1(e.altura + ACRESCIMO_ALTURA[e.acabamento]);
+  const v = calcularVisor(larguraCorte, alturaCorte, rolo, e.visor ?? { ...VISOR_PADRAO, roloCristal: ROLO_CRISTAL_CM });
+  const metrosTotal = round2(v.metrosLona * quantidade);
+  return {
+    rolo,
+    larguraCorte,
+    alturaCorte,
+    // peças de lona: 2 laterais + faixa de cima + faixa de baixo
+    gomos: 4,
+    emendas: 2,
+    larguraGomos: [],
+    retalho: 0,
+    metrosPorToldo: v.metrosLona,
+    metrosTotal,
+    metrosRolo: metrosTotal,
+    usoRetalho: null,
+    areaCorte: round2((larguraCorte * alturaCorte) / 10000),
+    laterais: null,
+    metrosGeral: metrosTotal,
+    visor: v,
+    metrosCristalTotal: round2(v.metrosCristal * quantidade),
+  };
 }
 
 function round1(n: number) {

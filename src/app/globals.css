@@ -1155,3 +1155,38 @@ rect.cd-linha { stroke-dasharray: 100; animation: risca 0.6s ease-out; }
 .antes-de-buscar small { display: block; margin-top: 4px; }
 .datas-busca { padding-top: 2px; }
 .aviso-datas { margin: -4px 16px 10px; }
+.resultado-sub {
+  background: rgb(255 255 255 / 0.08);
+  padding: 10px 16px 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--azul-brilho); border-top: 1px solid rgb(255 255 255 / 0.12);
+}
+.resultado-lateral { border-top: 0; }
+.resultado-sub-casca { background: rgb(255 255 255 / 0.08); }
+.resultado-sub + .resultado-medidas { padding-top: 0; }
+
+/* ============================================================
+   Cortina com visor
+   ============================================================ */
+.dv-cristal { fill: color-mix(in srgb, var(--azul-brilho) 14%, var(--papel)); }
+.dv-brilho { stroke: color-mix(in srgb, var(--azul-brilho) 55%, transparent); stroke-width: 2; stroke-linecap: round; fill: none; }
+.dv-solda { stroke: var(--tinta); stroke-width: 1.4; stroke-dasharray: 2 2; opacity: 0.7; }
+.dv-texto-cristal { fill: var(--tinta); font-size: 11px; font-weight: 700; font-family: var(--fonte-texto); }
+.dv-menor { font-size: 9.5px; font-weight: 600; fill: var(--tinta-2); }
+.bloco-visor { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--linha); }
+.bloco-visor .retalho-campos { flex-wrap: wrap; }
+.bloco-visor .campo-pequeno { flex: 1 1 calc(50% - 5px); min-width: 0; }
+.nota-provisorio {
+  margin-top: 8px; font-size: 0.8rem; color: var(--tinta-2); line-height: 1.35;
+  padding: 8px 10px; border-radius: var(--raio-m); background: color-mix(in srgb, var(--sol) 12%, transparent);
+}
+.nota-provisorio b { color: var(--tinta); }
+.lista-pecas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lista-pecas li {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline;
+  padding: 10px 12px; border-radius: var(--raio-m); background: var(--fundo);
+}
+.lista-pecas strong { font-weight: 700; }
+.lista-pecas b { font-family: var(--fonte-display); font-size: 1.15rem; }
+.lista-pecas small { grid-column: 1 / -1; color: var(--tinta-2); font-size: 0.8rem; }
+.lista-pecas .peca-cristal { background: color-mix(in srgb, var(--azul-brilho) 10%, var(--fundo)); }
+.resultado-aviso { margin-top: 8px; color: #ffcf6e; font-weight: 600; font-size: 0.9rem; }

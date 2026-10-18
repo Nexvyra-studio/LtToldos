@@ -8,6 +8,7 @@ import { Cabecalho } from "@/components/Cabecalho";
 import { DesenhoCaderno } from "@/components/DesenhoCaderno";
 import { DesenhoCasca } from "@/components/DesenhoCasca";
 import { DesenhoCortina } from "@/components/DesenhoCortina";
+import { DesenhoVisor } from "@/components/DesenhoVisor";
 import { useToast } from "@/components/Toast";
 import {
   ACRESCIMO_ALTURA,
@@ -20,6 +21,7 @@ import {
   type Acabamento,
   type Modelo,
 } from "@/lib/calc/cortina";
+import { ROLO_CRISTAL_CM, VISOR_EMENDA_BAIXO, VISOR_EMENDA_CIMA, VISOR_PADRAO, VISOR_SOMA_LARGURA } from "@/lib/calc/visor";
 import { calculosRepo, type CalculoSalvo } from "@/lib/data/calculos";
 import { CHAVE_ABRIR, salvarServico } from "@/lib/data/servicos";
 import { mensagemErroBanco } from "@/lib/firebase";
@@ -40,6 +42,11 @@ const TEXTOS: Record<Modelo, { titulo: string; altura: string; vazio: string }> 
     altura: "Altura",
     vazio: "Digite a largura e a altura do vão, em centímetros.",
   },
+  "cortina-visor": {
+    titulo: "Cortina com visor",
+    altura: "Altura",
+    vazio: "Digite a largura e a altura do vão, em centímetros.",
+  },
   casca: {
     titulo: "Fixo (Casca)",
     altura: "Altura (curva)",
@@ -57,11 +64,13 @@ const TEXTOS: Record<Modelo, { titulo: string; altura: string; vazio: string }> 
   },
 };
 
-/** Tela de cálculo por gomos, usada pelo Toldo Cortina e pelo Toldo Fixo (Casca) */
+/** Tela de cálculo por faixas (gomos), usada pelo Toldo Cortina e pelo Toldo Fixo (Casca) */
 export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
   const toast = useToast();
   const textos = TEXTOS[modelo];
-  const ehCortina = modelo === "cortina";
+  const ehVisor = modelo === "cortina-visor";
+  // cortina e cortina com visor: altura com bandô ou canhão
+  const ehCortina = modelo === "cortina" || ehVisor;
 
   const [largura, setLargura] = useState("");
   const [altura, setAltura] = useState("");
@@ -88,6 +97,10 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
   const [comBandoLat, setComBandoLat] = useState(false);
   const [latLarg, setLatLarg] = useState("");
   const [latAlt, setLatAlt] = useState("");
+  const [visCima, setVisCima] = useState(String(VISOR_PADRAO.cima));
+  const [visBaixo, setVisBaixo] = useState(String(VISOR_PADRAO.baixo));
+  const [visLateral, setVisLateral] = useState(String(VISOR_PADRAO.lateral));
+  const [visRolo, setVisRolo] = useState(String(ROLO_CRISTAL_CM));
   const [usarRetalho, setUsarRetalho] = useState(false);
   const [retalhoLarg, setRetalhoLarg] = useState("");
   const [retalhoComp, setRetalhoComp] = useState("");
@@ -104,7 +117,7 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
       modelo,
       quantidade,
       rolo,
-      retalho: usarRetalho
+      retalho: usarRetalho && !ehVisor
         ? {
             largura: parseValor(retalhoLarg) || 0,
             // em branco = comprimento livre, não entra na conta
@@ -117,14 +130,25 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
             lateral: { largura: parseValor(latLarg) || 0, altura: parseValor(latAlt) || 0 },
           }
         : {}),
+      ...(ehVisor
+        ? {
+            visor: {
+              cima: parseValor(visCima) || 0,
+              baixo: parseValor(visBaixo) || 0,
+              lateral: parseValor(visLateral) || 0,
+              roloCristal: parseValor(visRolo) || ROLO_CRISTAL_CM,
+            },
+          }
+        : {}),
     }),
-    [largura, altura, acabamento, modelo, quantidade, rolo, usarRetalho, retalhoLarg, retalhoComp, comBandoLat, latLarg, latAlt],
+    [largura, altura, acabamento, modelo, quantidade, rolo, usarRetalho, retalhoLarg, retalhoComp, comBandoLat, latLarg, latAlt, ehVisor, visCima, visBaixo, visLateral, visRolo],
   );
   const r = useMemo(() => calcularCortina(entrada), [entrada]);
   const acrescimo = acrescimoAltura(entrada);
   const ehLateral = modelo === "fixo-lateral";
   const comBando = modelo === "casca-bando" || (ehLateral && comBandoLat);
   const lat = r?.laterais ?? null;
+  const vis = r?.visor ?? null;
   const metrosFinal = r ? (r.metrosGeral ?? r.metrosRolo) : 0;
   const nomeAcrescimo = ehCortina ? NOME_ACABAMENTO[acabamento] : comBando ? "Folga (bandô já na medida)" : "Folga da casca";
 
@@ -181,6 +205,12 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
     setComBandoLat(!!c.entrada.comBando);
     setLatLarg(c.entrada.lateral ? String(c.entrada.lateral.largura).replace(".", ",") : "");
     setLatAlt(c.entrada.lateral ? String(c.entrada.lateral.altura).replace(".", ",") : "");
+    if (c.entrada.visor) {
+      setVisCima(String(c.entrada.visor.cima).replace(".", ","));
+      setVisBaixo(String(c.entrada.visor.baixo).replace(".", ","));
+      setVisLateral(String(c.entrada.visor.lateral).replace(".", ","));
+      setVisRolo(String(c.entrada.visor.roloCristal).replace(".", ","));
+    }
     setCliente(c.cliente);
     setValorCent(c.valor ? Math.round(c.valor * 100) : 0);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -307,6 +337,24 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
           </div>
         )}
 
+        {ehVisor && (
+          <div className="bloco-visor">
+            <span className="rolo-rotulo">Moldura de lona e cristal</span>
+            <div className="retalho-campos">
+              <CampoPequeno rotulo="Faixa de cima" valor={visCima} onChange={setVisCima} />
+              <CampoPequeno rotulo="Faixa de baixo" valor={visBaixo} onChange={setVisBaixo} />
+              <CampoPequeno rotulo="Cada lateral" valor={visLateral} onChange={setVisLateral} />
+              <CampoPequeno rotulo="Rolo do cristal" valor={visRolo} onChange={setVisRolo} />
+            </div>
+            <p className="nota-provisorio">
+              <b>Provisório:</b> medidas do desenho do colega, ainda a confirmar. A faixa de cima soma +
+              {VISOR_EMENDA_CIMA} e a de baixo +{VISOR_EMENDA_BAIXO} para emendar no cristal; as laterais são
+              soldadas.
+            </p>
+          </div>
+        )}
+
+        {!ehVisor && (
         <div className={`retalho${usarRetalho ? " aberto" : ""}`}>
           <button
             type="button"
@@ -328,13 +376,14 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
               {r?.usoRetalho && (
                 <p className={r.usoRetalho.usado ? "retalho-msg ok" : "retalho-msg"}>
                   {r.usoRetalho.usado
-                    ? `O retalho cobre o gomo de ${formatNum(r.usoRetalho.larguraGomo)} cm${parseValor(retalhoComp) > 0 ? "" : ` (precisa ter ${formatM(r.alturaCorte / 100)} de comprimento)`}. Economia de ${formatM(r.alturaCorte / 100)} de lona nova.`
+                    ? `O retalho cobre a faixa de ${formatNum(r.usoRetalho.larguraGomo)} cm${parseValor(retalhoComp) > 0 ? "" : ` (precisa ter ${formatM(r.alturaCorte / 100)} de comprimento)`}. Economia de ${formatM(r.alturaCorte / 100)} de lona nova.`
                     : r.usoRetalho.motivo}
                 </p>
               )}
             </>
           )}
         </div>
+        )}
       </section>
 
       {r ? (
@@ -351,12 +400,27 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
                   Casca {formatM(r.metrosRolo)} + 2 laterais {formatM(lat.metrosTotal)}
                 </p>
               )}
+              {vis && (
+                <p className="resultado-partes">
+                  de lona + {formatM(r.metrosCristalTotal ?? vis.metrosCristal)} de cristal (rolo de{" "}
+                  {formatMetros((parseValor(visRolo) || ROLO_CRISTAL_CM) / 100)} m)
+                </p>
+              )}
+              {vis ? (
+                <p>
+                  2 laterais, faixa de cima, faixa de baixo e o cristal
+                  {quantidade > 1 && `, em cada toldo, ${quantidade} toldos`}
+                </p>
+              ) : (
               <p>
-                {r.gomos} {r.gomos === 1 ? "gomo" : "gomos"} de {formatMetros(r.alturaCorte / 100)} m
+                {r.gomos} {r.gomos === 1 ? "faixa" : "faixas"} de {formatMetros(r.alturaCorte / 100)} m
                 {quantidade > 1 && ` em cada toldo, ${quantidade} toldos`}
                 {r.usoRetalho?.usado && `, 1 deles do retalho`}
               </p>
+              )}
+              {vis?.aviso && <p className="resultado-aviso">{vis.aviso}</p>}
             </div>
+            {lat && <p className="resultado-sub resultado-sub-casca">Casca</p>}
             <dl className="resultado-medidas">
               <div>
                 <dt>Largura de corte</dt>
@@ -366,13 +430,97 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
                 <dt>Altura de corte</dt>
                 <dd>{formatNum(r.alturaCorte)} cm</dd>
               </div>
+              {vis ? (
+                <div>
+                  <dt>Cristal</dt>
+                  <dd>
+                    {formatNum(vis.cristal.largura)}×{formatNum(vis.cristal.altura)}
+                  </dd>
+                </div>
+              ) : (
               <div>
                 <dt>Emendas</dt>
                 <dd>{r.emendas}</dd>
               </div>
+              )}
             </dl>
+            {lat && (
+              <>
+                <p className="resultado-sub">
+                  Cada lateral ({comBandoLat ? "com bandô, altura +30" : "sem bandô, altura +5"})
+                </p>
+                <dl className="resultado-medidas resultado-lateral">
+                  <div>
+                    <dt>Largura de corte</dt>
+                    <dd>{formatNum(lat.larguraCorte)} cm</dd>
+                  </div>
+                  <div>
+                    <dt>Altura de corte</dt>
+                    <dd>{formatNum(lat.alturaCorte)} cm</dd>
+                  </div>
+                  <div>
+                    <dt>Emendas</dt>
+                    <dd>{lat.emendas}</dd>
+                  </div>
+                </dl>
+              </>
+            )}
           </section>
 
+          {vis ? (
+            <>
+              <section className="cartao cartao-caderno">
+                <DesenhoVisor
+                  larguraCorte={r.larguraCorte}
+                  alturaCorte={r.alturaCorte}
+                  v={vis}
+                  acabamento={NOME_ACABAMENTO[acabamento]}
+                />
+              </section>
+              <section className="cartao">
+                <h2 className="titulo-secao">Peças para cortar</h2>
+                <ul className="lista-pecas">
+                  <li>
+                    <strong>2 laterais (lona)</strong>
+                    <b>
+                      {formatNum(vis.lateral.largura)} × {formatNum(vis.lateral.altura)}
+                    </b>
+                    <small>De cima a baixo, soldadas na parte do meio · {formatM(vis.metrosLaterais)} de rolo</small>
+                  </li>
+                  <li>
+                    <strong>Faixa de cima (lona)</strong>
+                    <b>
+                      {formatNum(vis.faixaCima.largura)} × {formatNum(vis.faixaCima.altura)}
+                    </b>
+                    <small>
+                      {formatNum(vis.faixaCima.altura - VISOR_EMENDA_CIMA)} + {VISOR_EMENDA_CIMA} de emenda no cristal
+                    </small>
+                  </li>
+                  <li>
+                    <strong>Faixa de baixo (lona)</strong>
+                    <b>
+                      {formatNum(vis.faixaBaixo.largura)} × {formatNum(vis.faixaBaixo.altura)}
+                    </b>
+                    <small>
+                      {formatNum(vis.faixaBaixo.altura - VISOR_EMENDA_BAIXO)} + {VISOR_EMENDA_BAIXO} de emenda no cristal ·
+                      as duas faixas: {formatM(vis.metrosFaixas)} de rolo
+                    </small>
+                  </li>
+                  <li className="peca-cristal">
+                    <strong>Cristal</strong>
+                    <b>
+                      {formatNum(vis.cristal.largura)} × {formatNum(vis.cristal.altura)}
+                    </b>
+                    <small>
+                      {formatM(vis.metrosCristal)} do rolo de cristal
+                      {vis.emendasCristal > 0 && ` · ${vis.emendasCristal} ${vis.emendasCristal === 1 ? "emenda" : "emendas"} (maior que o rolo)`}
+                    </small>
+                  </li>
+                </ul>
+              </section>
+            </>
+          ) : (
+          <>
           <section className="cartao cartao-caderno">{desenho(r.larguraCorte)}</section>
 
 
@@ -380,12 +528,14 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
             <h2 className="titulo-secao">Plano de corte</h2>
             <DesenhoCortina r={r} faixa={ehCortina ? { nome: NOME_ACABAMENTO[acabamento], cm: acrescimo } : null} />
             <p className="legenda">
-              {r.gomos} {r.gomos === 1 ? "gomo" : "gomos"} ({r.larguraGomos.map((g) => formatNum(g)).join(" + ")} cm) e {r.emendas} {r.emendas === 1 ? "emenda" : "emendas"}, nas linhas amarelas.
+              {r.gomos} {r.gomos === 1 ? "faixa" : "faixas"} ({r.larguraGomos.map((g) => formatNum(g)).join(" + ")} cm) e {r.emendas} {r.emendas === 1 ? "emenda" : "emendas"}, nas linhas amarelas.
               {r.usoRetalho?.usado
-                ? ` O gomo amarelo (${formatNum(r.usoRetalho.larguraGomo)} cm) sai do retalho de ${formatNum(r.usoRetalho.larguraGomo + r.usoRetalho.sobraLargura)} cm${r.usoRetalho.sobraLargura > 0 ? ` e sobram ${formatNum(r.usoRetalho.sobraLargura)} cm dele` : ""}.`
-                : r.retalho > 0 && `${r.gomos > 2 ? " O gomo cortado fica no meio;" : ""} sobram ${formatNum(r.retalho)} cm dele no rolo.`}
+                ? ` A faixa amarela (${formatNum(r.usoRetalho.larguraGomo)} cm) sai do retalho de ${formatNum(r.usoRetalho.larguraGomo + r.usoRetalho.sobraLargura)} cm${r.usoRetalho.sobraLargura > 0 ? ` e sobram ${formatNum(r.usoRetalho.sobraLargura)} cm dele` : ""}.`
+                : r.retalho > 0 && `${r.gomos > 2 ? " A faixa cortada fica no meio;" : ""} sobram ${formatNum(r.retalho)} cm dele no rolo.`}
             </p>
           </section>
+          </>
+          )}
 
           {lat && (
             <section className="cartao">
@@ -395,7 +545,7 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
                 faixa={null}
               />
               <p className="legenda">
-                Cada lateral: {lat.gomos} {lat.gomos === 1 ? "gomo" : "gomos"} ({lat.larguraGomos.map((g) => formatNum(g)).join(" + ")} cm) de {formatMetros(lat.alturaCorte / 100)} m. São 2 laterais; depois de emendar, recorta no formato da ferragem.
+                Cada lateral: {lat.gomos} {lat.gomos === 1 ? "faixa" : "faixas"} ({lat.larguraGomos.map((g) => formatNum(g)).join(" + ")} cm) de {formatMetros(lat.alturaCorte / 100)} m. São 2 laterais; depois de emendar, recorta no formato da ferragem.
               </p>
             </section>
           )}
@@ -403,6 +553,65 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
           <section className="cartao">
             <h2 className="titulo-secao">Como chegou nesse valor</h2>
             <ol className="conta">
+              {vis ? (
+                <>
+                  <li>
+                    <span>Largura</span>
+                    <span>
+                      {formatNum(entrada.largura)} + {VISOR_SOMA_LARGURA}
+                    </span>
+                    <b>{formatNum(r.larguraCorte)} cm</b>
+                    <small>10 + 2 + 3, fixos</small>
+                  </li>
+                  <li>
+                    <span>Altura</span>
+                    <span>
+                      {formatNum(entrada.altura)} + {acrescimo}
+                    </span>
+                    <b>{formatNum(r.alturaCorte)} cm</b>
+                    <small>{nomeAcrescimo}</small>
+                  </li>
+                  <li>
+                    <span>Meio</span>
+                    <span>
+                      {formatNum(r.larguraCorte)} − 2 × {formatNum(vis.lateral.largura)}
+                    </span>
+                    <b>{formatNum(vis.larguraMeio)} cm</b>
+                    <small>Largura das faixas e do cristal</small>
+                  </li>
+                  <li>
+                    <span>Cristal</span>
+                    <span>
+                      {formatNum(r.alturaCorte)} − {formatNum(vis.faixaCima.altura - VISOR_EMENDA_CIMA)} −{" "}
+                      {formatNum(vis.faixaBaixo.altura - VISOR_EMENDA_BAIXO)}
+                    </span>
+                    <b>{formatNum(vis.cristal.altura)} cm</b>
+                    <small>Altura do cristal</small>
+                  </li>
+                  <li>
+                    <span>Lona</span>
+                    <span>
+                      {formatMetros(vis.metrosLaterais)} + {formatMetros(vis.metrosFaixas)}
+                    </span>
+                    <b>{formatM(vis.metrosLona)}</b>
+                    <small>Laterais + faixas, por toldo</small>
+                  </li>
+                  {quantidade > 1 && (
+                    <li>
+                      <span>Total</span>
+                      <span>
+                        {formatMetros(vis.metrosLona)} × {quantidade}
+                      </span>
+                      <b>{formatM(r.metrosTotal)}</b>
+                      <small>
+                        + cristal {formatMetros(vis.metrosCristal)} × {quantidade} ={" "}
+                        {formatM(r.metrosCristalTotal ?? 0)}
+                      </small>
+                    </li>
+                  )}
+                </>
+              ) : (
+              <>
               <li>
                 <span>Largura</span>
                 <span>
@@ -446,11 +655,11 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
                   <li>
                     <span>Lateral</span>
                     <span>
-                      ({formatNum(entrada.lateral!.largura)} + 5) × ({formatNum(entrada.lateral!.altura)} + {comBandoLat ? 30 : 5})
+                      ({formatNum(entrada.lateral!.largura)} + 5{lat.emendas > 0 && ` + ${lat.emendas}`}) × ({formatNum(entrada.lateral!.altura)} + {comBandoLat ? 30 : 5})
                     </span>
                     <b>{formatNum(lat.larguraCorte)} × {formatNum(lat.alturaCorte)}</b>
                     <small>
-                      {lat.gomos} {lat.gomos === 1 ? "gomo" : "gomos"} de {formatMetros(lat.alturaCorte / 100)} m = {formatM(lat.metrosPorLateral)} cada
+                      {lat.gomos} {lat.gomos === 1 ? "faixa" : "faixas"} de {formatMetros(lat.alturaCorte / 100)} m = {formatM(lat.metrosPorLateral)} cada
                     </small>
                   </li>
                   <li>
@@ -470,8 +679,10 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
                     {formatMetros(r.metrosTotal)} − {formatMetros(r.alturaCorte / 100)}
                   </span>
                   <b>{formatM(r.metrosRolo)}</b>
-                  <small>1 gomo sai do retalho, não do rolo</small>
+                  <small>1 faixa sai do retalho, não do rolo</small>
                 </li>
+              )}
+              </>
               )}
             </ol>
           </section>

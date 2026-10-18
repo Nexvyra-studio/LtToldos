@@ -42,7 +42,7 @@ export function DesenhoCortina({ r, faixa }: Props) {
       className="desenho"
       viewBox={`0 0 ${vbW} ${vbH}`}
       role="img"
-      aria-label={`Plano de corte: ${r.gomos} gomos, ${formatNum(r.larguraCorte)} por ${formatNum(r.alturaCorte)} centímetros`}
+      aria-label={`Plano de corte: ${r.gomos} faixas, ${formatNum(r.larguraCorte)} por ${formatNum(r.alturaCorte)} centímetros`}
     >
       <defs>
         <pattern id="hachura" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">

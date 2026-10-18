@@ -32,10 +32,13 @@ dados ficam salvos só no navegador do aparelho.
 
 **Toldos** (tela inicial com os tipos; cada um tem sua calculadora)
 - **Toldo Cortina:** largura + 10 + 1 cm por emenda; altura + 25 (bandô) ou + 15 (canhão).
+- **Cortina com visor:** largura + 15 (10 + 2 + 3, fixos); altura igual à cortina. Moldura de lona (2 laterais
+  soldadas, faixa de cima + 3 e faixa de baixo + 4 emendadas no cristal) e cristal no meio. Medidas da moldura
+  provisórias (30 / 20 / 50), editáveis na tela e em `src/lib/calc/visor.ts`.
 - **Fixo (casca):** largura + 10 + 1 cm por emenda; altura (ferragem por cima da curva) + 10.
 - **Fixo (casca) com bandô:** igual à casca; a medida já inclui o bandô.
-- **Fixo com lateral:** casca + 2 laterais em gomos; lateral largura + 5, altura + 5 (sem bandô) ou + 30 (com bandô).
-- Em todos: largura do rolo livre, gomo cortado no meio, retalho opcional, desenho estilo caderno,
+- **Fixo com lateral:** casca + 2 laterais em faixas; lateral largura + 5 + 1 cm por emenda, altura + 5 (sem bandô) ou + 30 (com bandô).
+- Em todos: largura do rolo livre, faixa cortada no meio, retalho opcional, desenho estilo caderno,
   plano de corte, conta passo a passo e cálculos salvos.
 
 **Serviços**
@@ -83,10 +86,10 @@ As coleções são criadas sozinhas no primeiro lançamento/cálculo salvo. Não
 
 | Campo | Tipo | Observação |
 |---|---|---|
-| `tipo` | texto | `cortina`, `casca`, `casca-bando` ou `fixo-lateral` |
+| `tipo` | texto | `cortina`, `cortina-visor`, `casca`, `casca-bando` ou `fixo-lateral` |
 | `cliente` | texto | cliente ou referência (opcional) |
 | `entrada` | mapa | medidas digitadas: `largura`, `altura`, `acabamento`, `modelo`, `quantidade`, `rolo`, `retalho`, `comBando`, `lateral` |
-| `resultado` | mapa | `larguraCorte`, `alturaCorte`, `gomos`, `emendas`, `larguraGomos`, `retalho`, `metrosPorToldo`, `metrosTotal`, `metrosRolo`, `metrosGeral`, `laterais`, `usoRetalho`… |
+| `resultado` | mapa | (`gomos` = número de faixas) `larguraCorte`, `alturaCorte`, `gomos`, `emendas`, `larguraGomos`, `retalho`, `metrosPorToldo`, `metrosTotal`, `metrosRolo`, `metrosGeral`, `laterais`, `usoRetalho`… |
 | `valor` | número | valor cobrado do cliente (R$) |
 | `status` | texto | `aberto` ou `finalizado` |
 | `finalizadoEm` | texto ou nulo | dia em que foi finalizado (`aaaa-mm-dd`) |

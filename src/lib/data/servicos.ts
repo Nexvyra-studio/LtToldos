@@ -13,6 +13,7 @@ import { lancamentosRepo, type Lancamento } from "./lancamentos";
 
 export const NOME_TIPO: Record<Modelo, string> = {
   cortina: "Cortina",
+  "cortina-visor": "Cortina com visor",
   casca: "Casca",
   "casca-bando": "Casca com bandô",
   "fixo-lateral": "Fixo com lateral",
@@ -20,6 +21,7 @@ export const NOME_TIPO: Record<Modelo, string> = {
 
 export const ROTA_TIPO: Record<Modelo, string> = {
   cortina: "/toldos/cortina",
+  "cortina-visor": "/toldos/cortina-visor",
   casca: "/toldos/casca",
   "casca-bando": "/toldos/casca-bando",
   "fixo-lateral": "/toldos/fixo-lateral",

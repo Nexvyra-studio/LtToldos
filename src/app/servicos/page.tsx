@@ -222,7 +222,7 @@ export default function ServicosPage() {
         </div>
 
         <div className="chips" role="radiogroup" aria-label="Tipo de toldo">
-          {(["todos", "cortina", "casca", "casca-bando", "fixo-lateral"] as const).map((t) => (
+          {(["todos", "cortina", "cortina-visor", "casca", "casca-bando", "fixo-lateral"] as const).map((t) => (
             <button
               key={t}
               type="button"
