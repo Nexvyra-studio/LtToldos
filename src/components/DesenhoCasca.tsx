@@ -18,7 +18,8 @@ interface Props {
 export function DesenhoCasca({ largura, altura, larguraCorte, bando, lateral }: Props) {
   const temL = largura > 0;
   const temA = altura > 0;
-  const alturaFinal = altura + ACRESCIMO_CASCA;
+  const acrescimo = ACRESCIMO_CASCA;
+  const alturaFinal = altura + acrescimo;
 
   // curva da parede até a frente
   const curva = "M48 58 Q 190 30 262 128";
@@ -92,7 +93,7 @@ export function DesenhoCasca({ largura, altura, larguraCorte, bando, lateral }: 
       </svg>
       <figcaption>
         {temL && temA
-          ? `${formatNum(largura)} × ${formatNum(altura)} (por cima da curva${bando ? ", com o bandô" : ""}), altura +${ACRESCIMO_CASCA}`
+          ? `${formatNum(largura)} × ${formatNum(altura)} (por cima da curva${bando ? ", com o bandô" : ""}), altura +${acrescimo}`
           : bando
             ? "Altura é a medida por cima da curva, já contando o bandô que cai na frente"
             : "Altura é a medida da ferragem por cima, acompanhando a curva"}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LuCheck, LuChevronRight, LuClipboardList, LuMinus, LuPlus, LuRuler, LuX } from "react-icons/lu";
+import { LuCheck, LuChevronRight, LuClipboardList, LuPlus, LuRuler, LuX } from "react-icons/lu";
 import { Cabecalho } from "@/components/Cabecalho";
 import { DesenhoCaderno } from "@/components/DesenhoCaderno";
 import { DesenhoCasca } from "@/components/DesenhoCasca";
@@ -89,6 +89,7 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
   const [largura, setLargura] = useState("");
   const [altura, setAltura] = useState("");
   const [acabamento, setAcabamento] = useState<Acabamento>("bando");
+  // 1 toldo por cálculo: vários toldos vão juntos no serviço ("Adicionar ao serviço")
   const [quantidade, setQuantidade] = useState(1);
   const [rolo, setRolo] = useState(ROLO_LONA_CM);
   const [roloTexto, setRoloTexto] = useState(String(ROLO_LONA_CM));
@@ -167,7 +168,7 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
   const lat = r?.laterais ?? null;
   const vis = r?.visor ?? null;
   const metrosFinal = r ? (r.metrosGeral ?? r.metrosRolo) : 0;
-  const nomeAcrescimo = ehCortina ? NOME_ACABAMENTO[acabamento] : comBando ? "Folga (bandô já na medida)" : "Folga da casca";
+  const nomeAcrescimo = ehCortina ? NOME_ACABAMENTO[acabamento] : comBando ? "Folga da casca (bandô já na medida)" : "Folga da casca";
 
   const desenho = (larguraCorte?: number) =>
     ehCortina ? (
@@ -360,27 +361,10 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
           ) : (
             <p className="nota-folga">
               Altura <b>+{acrescimo} cm</b>
-              <small>{comBando ? "bandô já incluso na medida" : "sem bandô"}</small>
+              <small>{comBando ? "com bandô (já na medida)" : "sem bandô"}</small>
             </p>
           )}
 
-          <div className="contador" aria-label="Quantidade de toldos">
-            <button
-              type="button"
-              aria-label="Menos um"
-              onClick={() => setQuantidade((q) => Math.max(1, q - 1))}
-              disabled={quantidade <= 1}
-            >
-              <LuMinus />
-            </button>
-            <output aria-live="polite">
-              {quantidade}
-              <small>{quantidade === 1 ? "toldo" : "toldos"}</small>
-            </output>
-            <button type="button" aria-label="Mais um" onClick={() => setQuantidade((q) => q + 1)}>
-              <LuPlus />
-            </button>
-          </div>
         </div>
 
         {ehLateral && (

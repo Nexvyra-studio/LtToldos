@@ -4,8 +4,8 @@
  * Regras da empresa:
  *  - Largura de corte = medida + 10 cm (5 cm de cada lado) + 1 cm por emenda
  *  - Altura de corte  = Cortina: medida + 25 cm (bandô) ou + 15 cm (canhão)
- *                       Casca (com ou sem bandô): medida da ferragem por cima da curva + 10 cm
- *                       (no Casca com bandô, a medida já inclui o bandô)
+ *                       Casca (com ou sem bandô, e a casca do Fixo com lateral):
+ *                       medida da ferragem por cima da curva + 30 cm (correção da fábrica; antes + 10)
  *  - Lona em rolo de 1,40 m: os gomos são emendados lado a lado na largura
  */
 
@@ -16,7 +16,8 @@ export type Modelo = "cortina" | "cortina-visor" | "casca" | "casca-bando" | "fi
 /** Laterais do Fixo com lateral: largura + 5 + 1 cm por emenda; altura + 5 (sem bandô) ou + 30 (com bandô) */
 export const LATERAL_LARGURA = 5;
 export const LATERAL_ALTURA = { semBando: 5, comBando: 30 };
-export const ACRESCIMO_CASCA = 10;
+/** casca: altura + 30, com ou sem bandô (correção da fábrica; antes estava + 10) */
+export const ACRESCIMO_CASCA = 30;
 
 export const ROLO_LONA_CM = 140;
 export const SOBRA_LATERAL_CM = 10;
@@ -204,11 +205,10 @@ export function calcularCortina(e: EntradaCortina): ResultadoCortina | null {
   };
 }
 
-/** quanto soma na altura: bandô/canhão no Cortina, 10 cm fixos na Casca */
+/** quanto soma na altura: bandô/canhão no Cortina; + 30 na Casca (com ou sem bandô) */
 export function acrescimoAltura(e: Pick<EntradaCortina, "modelo" | "acabamento">) {
-  return e.modelo && e.modelo !== "cortina" && e.modelo !== "cortina-visor"
-    ? ACRESCIMO_CASCA
-    : ACRESCIMO_ALTURA[e.acabamento];
+  if (!e.modelo || e.modelo === "cortina" || e.modelo === "cortina-visor") return ACRESCIMO_ALTURA[e.acabamento];
+  return ACRESCIMO_CASCA;
 }
 
 /** Cortina com visor: largura + 15 fixos, altura igual à cortina, moldura de lona + cristal */
