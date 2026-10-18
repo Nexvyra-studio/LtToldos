@@ -22,7 +22,8 @@ import {
 } from "@/lib/calc/cortina";
 import { ROLO_CRISTAL_CM, VISOR_EMENDA_BAIXO, VISOR_EMENDA_CIMA, VISOR_PADRAO, VISOR_SOMA_LARGURA } from "@/lib/calc/visor";
 import type { EntradaCortina } from "@/lib/calc/cortina";
-import { formatM, formatMetros, formatNum, parseValor } from "@/lib/format";
+import type { ItemServico } from "@/lib/data/calculos";
+import { centavosParaTexto, formatBRL, formatM, formatMetros, formatNum, parseValor } from "@/lib/format";
 import { useMontagem } from "@/lib/montagem";
 
 function lerRoloSalvo() {
@@ -63,7 +64,22 @@ const TEXTOS: Record<Modelo, { titulo: string; altura: string; vazio: string }> 
 };
 
 /** Tela de cálculo por faixas (gomos), usada pelo Toldo Cortina e pelo Toldo Fixo (Casca) */
-export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
+interface Visualizar {
+  item: ItemServico;
+  /** número do toldo no serviço (1, 2, 3…) */
+  numero: number;
+  total: number;
+  cliente: string;
+  onVoltar(): void;
+  onAnterior?: () => void;
+  onProximo?: () => void;
+}
+
+/**
+ * Tela de cálculo por faixas, usada por todos os tipos.
+ * Com `visualizar`, mostra um toldo de um serviço salvo só para consulta (campos travados).
+ */
+export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visualizar?: Visualizar }) {
   const toast = useToast();
   const textos = TEXTOS[modelo];
   const ehVisor = modelo === "cortina-visor";
@@ -104,9 +120,11 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
   const [retalhoComp, setRetalhoComp] = useState("");
   const montagem = useMontagem();
   // toldo do serviço em montagem aberto aqui para alterar
-  const itemEditando =
-    montagem.rascunho.itens.find((i) => i.id === montagem.editandoItem && i.tipo === modelo) ?? null;
+  const itemEditando = visualizar
+    ? null
+    : (montagem.rascunho.itens.find((i) => i.id === montagem.editandoItem && i.tipo === modelo) ?? null);
   const numeroEditando = itemEditando ? montagem.rascunho.itens.indexOf(itemEditando) + 1 : 0;
+  const [valorItemCent, setValorItemCent] = useState(0);
 
   const entrada = useMemo(
     () => ({
@@ -179,18 +197,20 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
     setUsarRetalho(false);
     setRetalhoLarg("");
     setRetalhoComp("");
+    setValorItemCent(0);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function adicionarAoServico() {
     if (!r) return;
+    const valor = valorItemCent / 100;
     if (itemEditando) {
-      montagem.atualizarItem({ id: itemEditando.id, tipo: modelo, entrada, resultado: r });
+      montagem.atualizarItem({ id: itemEditando.id, tipo: modelo, entrada, resultado: r, valor });
       limparMedidas();
       toast({ mensagem: `Toldo ${numeroEditando} atualizado`, acao: { rotulo: "Ver serviço", executar: montagem.abrirPainel } });
       return;
     }
-    const n = montagem.adicionar({ tipo: modelo, entrada, resultado: r });
+    const n = montagem.adicionar({ tipo: modelo, entrada, resultado: r, valor });
     limparMedidas();
     toast({
       mensagem: n === 1 ? "Toldo adicionado ao serviço" : `Toldo ${n} adicionado ao serviço`,
@@ -229,18 +249,56 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // modo consulta: carrega o toldo do serviço salvo
+  const idVisualizar = visualizar?.item.id;
+  useEffect(() => {
+    if (!visualizar) return;
+    carregar(visualizar.item.entrada);
+    window.scrollTo({ top: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idVisualizar]);
+
   // abre aqui o toldo escolhido para alterar (no painel do serviço)
   const idEditando = itemEditando?.id;
   useEffect(() => {
-    if (itemEditando) carregar(itemEditando.entrada);
+    if (itemEditando) {
+      carregar(itemEditando.entrada);
+      setValorItemCent(Math.round((itemEditando.valor ?? 0) * 100));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idEditando]);
 
   return (
     <>
-      <Cabecalho titulo={textos.titulo} subtitulo={`Rolo de lona de ${formatMetros(rolo / 100)} m`} voltar="/toldos" />
+      {visualizar ? (
+        <Cabecalho
+          titulo={`Toldo ${visualizar.numero} · ${textos.titulo}`}
+          subtitulo={`${visualizar.cliente || "Sem referência"} · toldo ${visualizar.numero} de ${visualizar.total}`}
+          onVoltar={visualizar.onVoltar}
+        />
+      ) : (
+        <Cabecalho titulo={textos.titulo} subtitulo={`Rolo de lona de ${formatMetros(rolo / 100)} m`} voltar="/toldos" />
+      )}
+
+      {visualizar && (
+        <div className="faixa-consulta">
+          <span>Só consulta: serviço salvo</span>
+          {visualizar.total > 1 && (
+            <span className="faixa-consulta-nav">
+              <button type="button" onClick={visualizar.onAnterior} disabled={!visualizar.onAnterior} aria-label="Toldo anterior">
+                ‹
+              </button>
+              {visualizar.numero}/{visualizar.total}
+              <button type="button" onClick={visualizar.onProximo} disabled={!visualizar.onProximo} aria-label="Próximo toldo">
+                ›
+              </button>
+            </span>
+          )}
+        </div>
+      )}
 
       <section className="cartao" aria-label="Medidas">
+        <fieldset className="campos-grupo" disabled={!!visualizar}>
         <div className="medidas">
           <CampoMedida rotulo="Largura" valor={largura} onChange={setLargura} autoFocus />
           <span className="medidas-x" aria-hidden>×</span>
@@ -382,6 +440,7 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
           )}
         </div>
         )}
+        </fieldset>
       </section>
 
       {r ? (
@@ -686,10 +745,36 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
           </section>
 
           <section className={`cartao adicionar${itemEditando ? " editando" : ""}`}>
-            {itemEditando ? (
+            {visualizar ? (
+              <>
+                <h2 className="titulo-secao">Valor do toldo {visualizar.numero}</h2>
+                <p className="valor-consulta">
+                  {visualizar.item.valor ? formatBRL(visualizar.item.valor) : "Sem valor separado"}
+                </p>
+                <button type="button" className="botao-secundario" onClick={visualizar.onVoltar}>
+                  Voltar ao serviço
+                </button>
+              </>
+            ) : itemEditando ? (
               <>
                 <h2 className="titulo-secao">Alterando o toldo {numeroEditando}</h2>
                 <p className="dica-salvar">As novas medidas substituem esse toldo no serviço.</p>
+                <label className="campo campo-valor">
+                  <span>Valor deste toldo</span>
+                  <div>
+                    <em>R$</em>
+                    <input
+                      inputMode="numeric"
+                      value={centavosParaTexto(valorItemCent)}
+                      onChange={(e) => setValorItemCent(Number(e.target.value.replace(/\D/g, "").slice(0, 11) || 0))}
+                      onFocus={(e) => {
+                        const el = e.target;
+                        requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
+                      }}
+                      aria-label="Valor deste toldo em reais"
+                    />
+                  </div>
+                </label>
                 <button type="button" className="botao-principal" onClick={adicionarAoServico}>
                   <LuCheck aria-hidden /> Salvar alterações do toldo {numeroEditando}
                 </button>
@@ -706,9 +791,25 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
                 </h2>
                 <p className="dica-salvar">
                   {montagem.rascunho.itens.length > 0
-                    ? "Junta este toldo aos que já estão no serviço. Cliente e valor vão no fim, para todos."
-                    : "Pode juntar outros toldos (de qualquer tipo e medida) no mesmo serviço. Cliente e valor vão no fim."}
+                    ? "Junta este toldo aos que já estão no serviço. O valor do serviço é a soma dos toldos."
+                    : "Pode juntar outros toldos (de qualquer tipo e medida) no mesmo serviço. O valor do serviço é a soma dos toldos."}
                 </p>
+                <label className="campo campo-valor">
+                  <span>Valor deste toldo</span>
+                  <div>
+                    <em>R$</em>
+                    <input
+                      inputMode="numeric"
+                      value={centavosParaTexto(valorItemCent)}
+                      onChange={(e) => setValorItemCent(Number(e.target.value.replace(/\D/g, "").slice(0, 11) || 0))}
+                      onFocus={(e) => {
+                        const el = e.target;
+                        requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
+                      }}
+                      aria-label="Valor deste toldo em reais"
+                    />
+                  </div>
+                </label>
                 <button type="button" className="botao-principal" onClick={adicionarAoServico}>
                   <LuPlus aria-hidden /> Adicionar ao serviço
                 </button>
@@ -731,6 +832,7 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
         </>
       )}
 
+      {!visualizar && (
       <Link href="/servicos" className="link-servicos">
         <LuClipboardList aria-hidden />
         <span>
@@ -739,6 +841,7 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
         </span>
         <LuChevronRight aria-hidden />
       </Link>
+      )}
     </>
   );
 }

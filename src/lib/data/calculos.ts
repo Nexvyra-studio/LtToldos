@@ -10,6 +10,8 @@ export interface ItemServico {
   tipo: Modelo;
   entrada: EntradaCortina;
   resultado: ResultadoCortina;
+  /** valor cobrado por este toldo (R$); o valor do serviço é a soma */
+  valor?: number;
 }
 
 export interface CalculoSalvo {
@@ -38,8 +40,12 @@ export interface CalculoSalvo {
 /** toldos do serviço (funciona com serviços antigos, de um toldo só) */
 export function itensDe(c: Pick<CalculoSalvo, "id" | "tipo" | "entrada" | "resultado" | "itens">): ItemServico[] {
   if (c.itens && c.itens.length > 0) return c.itens;
-  return [{ id: `${c.id}-1`, tipo: c.tipo ?? "cortina", entrada: c.entrada, resultado: c.resultado }];
+  return [{ id: `${c.id}-1`, tipo: c.tipo ?? "cortina", entrada: c.entrada, resultado: c.resultado, valor: c.valor }];
 }
+
+/** soma dos valores dos toldos (R$) */
+export const somaValores = (itens: Pick<ItemServico, "valor">[]) =>
+  Math.round(itens.reduce((s, i) => s + (i.valor ?? 0), 0) * 100) / 100;
 
 /** metros de lona de um toldo (já com quantidade e laterais) */
 export const metrosItem = (i: Pick<ItemServico, "resultado">) =>

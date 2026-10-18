@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   LuCheck,
   LuClipboardList,
+  LuChevronRight,
   LuPencil,
   LuRotateCcw,
   LuSearch,
@@ -11,6 +12,7 @@ import {
   LuTrash2,
 } from "react-icons/lu";
 import { Cabecalho } from "@/components/Cabecalho";
+import { CalculadoraToldo } from "@/components/CalculadoraToldo";
 import { useConfirmar } from "@/components/Confirmar";
 import { Sheet } from "@/components/Sheet";
 import { useToast } from "@/components/Toast";
@@ -25,7 +27,7 @@ import {
   editarServico,
   excluirServico,
 } from "@/lib/data/servicos";
-import { centavosParaTexto, formatBRL, formatDataCurta, formatM, formatNum, hojeISO } from "@/lib/format";
+import { formatBRL, formatDataCurta, formatM, formatNum, hojeISO } from "@/lib/format";
 import { mensagemErroBanco } from "@/lib/firebase";
 import { datasInvertidas, datasPadrao, intervaloDasDatas } from "@/lib/periodos";
 
@@ -185,6 +187,33 @@ export default function ServicosPage() {
   }
 
   const fechar = useCallback(() => setAberto(null), []);
+
+  // toldo de um serviço aberto na tela de cálculo (só consulta), sem sair da página
+  const [vendo, setVendo] = useState<{ c: CalculoSalvo; idx: number } | null>(null);
+  if (vendo) {
+    const lista = itensDe(vendo.c);
+    const item = lista[vendo.idx];
+    const voltar = () => {
+      const atual = servicos.find((x) => x.id === vendo.c.id) ?? vendo.c;
+      setVendo(null);
+      setAberto(atual);
+    };
+    return (
+      <CalculadoraToldo
+        key={item.id}
+        modelo={item.tipo}
+        visualizar={{
+          item,
+          numero: vendo.idx + 1,
+          total: lista.length,
+          cliente: vendo.c.cliente,
+          onVoltar: voltar,
+          onAnterior: vendo.idx > 0 ? () => setVendo({ c: vendo.c, idx: vendo.idx - 1 }) : undefined,
+          onProximo: vendo.idx < lista.length - 1 ? () => setVendo({ c: vendo.c, idx: vendo.idx + 1 }) : undefined,
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -353,6 +382,10 @@ export default function ServicosPage() {
             c={aberto}
             onAlternar={() => alternar(aberto)}
             onAbrir={() => editarToldos(aberto)}
+            onVer={(idx) => {
+              setVendo({ c: aberto, idx });
+              setAberto(null);
+            }}
             onExcluir={() => excluir(aberto)}
             onSalvar={async (d) => {
               await editarServico(aberto, d);
@@ -370,19 +403,20 @@ function DetalheServico({
   c,
   onAlternar,
   onAbrir,
+  onVer,
   onExcluir,
   onSalvar,
 }: {
   c: CalculoSalvo;
   onAlternar(): void;
   onAbrir(): void;
+  onVer(idx: number): void;
   onExcluir(): void;
   onSalvar(d: { cliente: string; valor: number }): Promise<void>;
 }) {
   const [cliente, setCliente] = useState(c.cliente);
-  const [cent, setCent] = useState(c.valor ? Math.round(c.valor * 100) : 0);
   const fin = statusDe(c) === "finalizado";
-  const mudou = cliente.trim() !== c.cliente || cent !== Math.round((c.valor ?? 0) * 100);
+  const mudou = cliente.trim() !== c.cliente;
   const itens = itensDe(c);
   const cristal = itens.reduce((s, i) => s + cristalItem(i), 0);
 
@@ -391,6 +425,7 @@ function DetalheServico({
       <ol className="itens-servico itens-detalhe">
         {itens.map((i, idx) => (
           <li key={i.id}>
+            <button type="button" className="item-abrir" onClick={() => onVer(idx)}>
             <span className="item-num">{idx + 1}</span>
             <span className="item-servico-textos">
               <strong>{nomeItem(i)}</strong>
@@ -400,6 +435,9 @@ function DetalheServico({
                 {cristalItem(i) > 0 && ` · ${formatM(cristalItem(i))} de cristal`}
               </small>
             </span>
+            {i.valor ? <span className="item-valor-txt">{formatBRL(i.valor)}</span> : null}
+            <LuChevronRight className="seta-item" aria-hidden />
+            </button>
           </li>
         ))}
       </ol>
@@ -424,25 +462,20 @@ function DetalheServico({
         <span>Cliente ou referência</span>
         <input value={cliente} onChange={(e) => setCliente(e.target.value)} maxLength={60} />
       </label>
-      <label className="campo campo-valor">
-        <span>Valor do serviço</span>
-        <div>
-          <em>R$</em>
-          <input
-            inputMode="numeric"
-            value={centavosParaTexto(cent)}
-            onChange={(e) => setCent(Number(e.target.value.replace(/\D/g, "").slice(0, 11) || 0))}
-            aria-label="Valor do serviço em reais"
-          />
-        </div>
-      </label>
+      <div className="total-servico">
+        <span>
+          Valor do serviço
+          <small>{itens.length > 1 ? `soma dos ${itens.length} toldos` : "valor do toldo"}</small>
+        </span>
+        <strong>{formatBRL(c.valor ?? 0)}</strong>
+      </div>
+      <p className="dica-salvar">Toque num toldo para ver os detalhes. Para mudar valores, use “Editar toldos”.</p>
 
       {mudou && (
         <button
           type="button"
           className="botao-secundario"
-          disabled={cent <= 0}
-          onClick={() => onSalvar({ cliente, valor: cent / 100 })}
+          onClick={() => onSalvar({ cliente, valor: c.valor ?? 0 })}
         >
           Salvar alterações
         </button>

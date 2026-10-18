@@ -7,7 +7,7 @@ import { LuChevronUp, LuClipboardList, LuPencil, LuPlus, LuTrash2, LuX } from "r
 import { useConfirmar } from "@/components/Confirmar";
 import { Sheet } from "@/components/Sheet";
 import { useToast } from "@/components/Toast";
-import { cristalItem, metrosItem } from "@/lib/data/calculos";
+import { cristalItem, metrosItem, somaValores } from "@/lib/data/calculos";
 import { ROTA_TIPO, atualizarServico, nomeItem, salvarServico, totalToldos } from "@/lib/data/servicos";
 import { mensagemErroBanco } from "@/lib/firebase";
 import { centavosParaTexto, formatBRL, formatM, formatNum } from "@/lib/format";
@@ -39,7 +39,7 @@ export function ServicoMontagem() {
             </strong>
             <small>
               {n} {n === 1 ? "toldo" : "toldos"} · {formatM(lona)} de lona
-              {rascunho.valorCent > 0 && ` · ${formatBRL(rascunho.valorCent / 100)}`}
+              {somaValores(rascunho.itens) > 0 && ` · ${formatBRL(somaValores(rascunho.itens))}`}
             </small>
           </span>
           <LuChevronUp aria-hidden className="barra-servico-seta" />
@@ -68,6 +68,8 @@ function Painel() {
   const lona = rascunho.itens.reduce((s, i) => s + metrosItem(i), 0);
   const cristal = rascunho.itens.reduce((s, i) => s + cristalItem(i), 0);
   const n = totalToldos(rascunho.itens);
+  const total = somaValores(rascunho.itens);
+  const semValor = rascunho.itens.filter((i) => !(i.valor && i.valor > 0)).length;
   const editando = !!rascunho.servicoId;
 
   function editar(id: string, tipo: keyof typeof ROTA_TIPO) {
@@ -115,9 +117,9 @@ function Painel() {
 
   async function salvar() {
     setTentou(true);
-    if (rascunho.itens.length === 0 || rascunho.valorCent <= 0) return;
+    if (rascunho.itens.length === 0 || total <= 0) return;
     setSalvando(true);
-    const valor = rascunho.valorCent / 100;
+    const valor = total;
     try {
       if (rascunho.servicoId) {
         await atualizarServico(rascunho.servicoId, { cliente: rascunho.cliente, itens: rascunho.itens, valor });
@@ -164,6 +166,22 @@ function Painel() {
                 <button type="button" className="icone-btn perigo" onClick={() => remover(i.id, nome)} aria-label={`Tirar ${nome}`}>
                   <LuTrash2 />
                 </button>
+                <label className={`valor-item${tentou && !(i.valor && i.valor > 0) ? " falta" : ""}`}>
+                  <span>Valor</span>
+                  <em>R$</em>
+                  <input
+                    inputMode="numeric"
+                    value={centavosParaTexto(Math.round((i.valor ?? 0) * 100))}
+                    onChange={(e) =>
+                      m.definirValorItem(i.id, Number(e.target.value.replace(/\D/g, "").slice(0, 11) || 0) / 100)
+                    }
+                    onFocus={(e) => {
+                      const el = e.target;
+                      requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
+                    }}
+                    aria-label={`Valor de ${nome} em reais`}
+                  />
+                </label>
               </li>
             );
           })}
@@ -202,24 +220,17 @@ function Painel() {
           maxLength={60}
         />
       </label>
-      <label className="campo campo-valor">
-        <span>Valor do serviço (todos os toldos)</span>
-        <div>
-          <em>R$</em>
-          <input
-            inputMode="numeric"
-            value={centavosParaTexto(rascunho.valorCent)}
-            aria-invalid={tentou && rascunho.valorCent <= 0}
-            onChange={(e) => m.definir({ valorCent: Number(e.target.value.replace(/\D/g, "").slice(0, 11) || 0) })}
-            onFocus={(e) => {
-              const el = e.target;
-              requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
-            }}
-            aria-label="Valor do serviço em reais"
-          />
-        </div>
-      </label>
-      {tentou && rascunho.valorCent <= 0 && <p className="erro">Digite o valor do serviço.</p>}
+      <div className="total-servico" aria-live="polite">
+        <span>
+          Valor do serviço
+          <small>
+            {rascunho.itens.length > 1 ? `soma dos ${rascunho.itens.length} toldos` : "valor do toldo"}
+            {semValor > 0 && rascunho.itens.length > 0 && ` · ${semValor} sem valor`}
+          </small>
+        </span>
+        <strong>{formatBRL(total)}</strong>
+      </div>
+      {tentou && total <= 0 && <p className="erro">Digite o valor de pelo menos um toldo.</p>}
 
       <p className="dica-salvar">
         {editando ? (

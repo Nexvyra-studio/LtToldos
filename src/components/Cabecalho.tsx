@@ -6,20 +6,28 @@ interface Props {
   titulo: string;
   subtitulo?: string;
   voltar?: string;
+  /** botão voltar sem trocar de página */
+  onVoltar?: () => void;
   direita?: ReactNode;
   /** logo grande acima do título (tela inicial) */
   marcaGrande?: boolean;
 }
 
 /** Cabeçalho listrado como lona de toldo, com a barra recortada em ondas (bandô) */
-export function Cabecalho({ titulo, subtitulo, voltar, direita, marcaGrande }: Props) {
+export function Cabecalho({ titulo, subtitulo, voltar, onVoltar, direita, marcaGrande }: Props) {
   return (
     <header className="toldo">
       <div className="toldo-conteudo">
-        {voltar && (
-          <Link href={voltar} className="toldo-voltar" aria-label="Voltar">
+        {onVoltar ? (
+          <button type="button" onClick={onVoltar} className="toldo-voltar" aria-label="Voltar">
             <LuArrowLeft />
-          </Link>
+          </button>
+        ) : (
+          voltar && (
+            <Link href={voltar} className="toldo-voltar" aria-label="Voltar">
+              <LuArrowLeft />
+            </Link>
+          )
         )}
         <div className="toldo-textos">
           {marcaGrande && (

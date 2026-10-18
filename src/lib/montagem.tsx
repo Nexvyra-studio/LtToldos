@@ -13,11 +13,10 @@ export interface Rascunho {
   /** id do serviço quando está editando um serviço já salvo */
   servicoId: string | null;
   cliente: string;
-  valorCent: number;
   itens: ItemServico[];
 }
 
-const VAZIO: Rascunho = { servicoId: null, cliente: "", valorCent: 0, itens: [] };
+const VAZIO: Rascunho = { servicoId: null, cliente: "", itens: [] };
 const CHAVE = "toldos:montagem";
 
 interface Ctx {
@@ -30,7 +29,9 @@ interface Ctx {
   atualizarItem(i: ItemServico): void;
   removerItem(id: string): void;
   editarItem(id: string | null): void;
-  definir(d: Partial<Pick<Rascunho, "cliente" | "valorCent">>): void;
+  definir(d: Partial<Pick<Rascunho, "cliente">>): void;
+  /** troca o valor (R$) de um toldo */
+  definirValorItem(id: string, valor: number): void;
   carregarServico(c: CalculoSalvo): void;
   limpar(): void;
   abrirPainel(): void;
@@ -94,18 +95,19 @@ export function MontagemProvider({ children }: { children: ReactNode }) {
     setEditandoItem((e) => (e === id ? null : e));
   }, []);
 
-  const definir = useCallback((d: Partial<Pick<Rascunho, "cliente" | "valorCent">>) => {
+  const definir = useCallback((d: Partial<Pick<Rascunho, "cliente">>) => {
     setRascunho((r) => ({ ...r, ...d }));
   }, []);
 
+  const definirValorItem = useCallback((id: string, valor: number) => {
+    setRascunho((r) => ({ ...r, itens: r.itens.map((x) => (x.id === id ? { ...x, valor } : x)) }));
+  }, []);
+
   const carregarServico = useCallback((c: CalculoSalvo) => {
-    setRascunho({
-      servicoId: c.id,
-      cliente: c.cliente,
-      valorCent: c.valor ? Math.round(c.valor * 100) : 0,
-      // ids novos para cada toldo (os antigos podem não ter)
-      itens: itensDe(c).map((i) => ({ ...i, id: novoId() })),
-    });
+    const itens = itensDe(c).map((i) => ({ ...i, id: novoId() }));
+    // serviços salvos antes do valor por toldo: o valor todo fica no 1º toldo
+    if (itens.every((i) => i.valor == null) && c.valor) itens[0] = { ...itens[0], valor: c.valor };
+    setRascunho({ servicoId: c.id, cliente: c.cliente, itens });
     setEditandoItem(null);
   }, []);
 
@@ -126,12 +128,13 @@ export function MontagemProvider({ children }: { children: ReactNode }) {
       removerItem,
       editarItem: setEditandoItem,
       definir,
+      definirValorItem,
       carregarServico,
       limpar,
       abrirPainel: () => setPainelAberto(true),
       fecharPainel: () => setPainelAberto(false),
     }),
-    [rascunho, editandoItem, painelAberto, adicionar, atualizarItem, removerItem, definir, carregarServico, limpar],
+    [rascunho, editandoItem, painelAberto, adicionar, atualizarItem, removerItem, definir, definirValorItem, carregarServico, limpar],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

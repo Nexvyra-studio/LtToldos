@@ -43,8 +43,11 @@ dados ficam salvos só no navegador do aparelho.
 
 **Serviços**
 - Um serviço pode ter **vários toldos**, de tipos e medidas diferentes. Em cada calculadora, "Adicionar ao
-  serviço" junta o toldo na montagem (barra no rodapé). No painel da montagem: alterar ou tirar toldos,
-  cliente, valor (de todos os toldos) e **Salvar serviço**. A montagem fica guardada no aparelho até salvar.
+  serviço" junta o toldo (com o valor dele) na montagem (barra no rodapé). No painel da montagem: alterar ou
+  tirar toldos, mudar o valor de cada um, cliente e **Salvar serviço**. O valor do serviço é a soma dos toldos.
+  A montagem fica guardada no aparelho até salvar.
+- No serviço salvo, tocar num toldo abre a tela de cálculo dele só para consulta (desenho, plano de corte,
+  conta e valor), com setas para passar entre os toldos.
 - Ao salvar, ele vira um serviço "em aberto" e entra no Financeiro como **a receber**.
 - "Editar toldos" (no serviço salvo) leva o serviço de volta para a montagem.
 - Na página Serviços: escolha os filtros (em aberto/finalizados, tipo, período, cliente) e toque em
@@ -97,7 +100,7 @@ As coleções são criadas sozinhas no primeiro lançamento/cálculo salvo. Não
 | `status` | texto | `aberto` ou `finalizado` |
 | `finalizadoEm` | texto ou nulo | dia em que foi finalizado (`aaaa-mm-dd`) |
 | `lancamentoId` | texto | id do lançamento "a receber" no financeiro |
-| `itens` | lista | todos os toldos do serviço: `{ id, tipo, entrada, resultado }`. Serviços antigos não têm; `tipo`/`entrada`/`resultado` repetem o 1º toldo |
+| `itens` | lista | todos os toldos do serviço: `{ id, tipo, entrada, resultado, valor }`; `valor` do serviço = soma. Serviços antigos não têm; `tipo`/`entrada`/`resultado` repetem o 1º toldo |
 | `criadoEm` | número | data/hora em milissegundos |
 | `criadoPor` | texto | e-mail de quem salvou |
 
