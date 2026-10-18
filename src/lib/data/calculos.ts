@@ -38,7 +38,7 @@ export interface CalculoSalvo {
 }
 
 /** toldos do serviço (funciona com serviços antigos, de um toldo só) */
-export function itensDe(c: Pick<CalculoSalvo, "id" | "tipo" | "entrada" | "resultado" | "itens">): ItemServico[] {
+export function itensDe(c: Pick<CalculoSalvo, "id" | "tipo" | "entrada" | "resultado" | "itens" | "valor">): ItemServico[] {
   if (c.itens && c.itens.length > 0) return c.itens;
   return [{ id: `${c.id}-1`, tipo: c.tipo ?? "cortina", entrada: c.entrada, resultado: c.resultado, valor: c.valor }];
 }
