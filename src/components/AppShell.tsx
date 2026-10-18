@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Login } from "./Login";
 import { NavInferior } from "./NavInferior";
+import { ServicoMontagem } from "./ServicoMontagem";
+import { MontagemProvider } from "@/lib/montagem";
 import { ConfirmarProvider } from "./Confirmar";
 import { ToastProvider } from "./Toast";
 
@@ -25,6 +27,7 @@ function Conteudo({ children }: { children: ReactNode }) {
   return (
     <>
       <main className="conteudo">{children}</main>
+      <ServicoMontagem />
       <NavInferior />
     </>
   );
@@ -35,7 +38,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <AuthProvider>
       <ToastProvider>
         <ConfirmarProvider>
-          <Conteudo>{children}</Conteudo>
+          <MontagemProvider>
+            <Conteudo>{children}</Conteudo>
+          </MontagemProvider>
         </ConfirmarProvider>
       </ToastProvider>
     </AuthProvider>

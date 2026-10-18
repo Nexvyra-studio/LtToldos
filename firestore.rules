@@ -45,7 +45,9 @@ service cloud.firestore {
           && (!('valor' in d) || (d.valor is number && d.valor >= 0))
           && (!('status' in d) || d.status in ['aberto', 'finalizado'])
           && (!('finalizadoEm' in d) || d.finalizadoEm == null || ehData(d.finalizadoEm))
-          && (!('lancamentoId' in d) || d.lancamentoId == null || d.lancamentoId is string);
+          && (!('lancamentoId' in d) || d.lancamentoId == null || d.lancamentoId is string)
+          // vários toldos no mesmo serviço (até 40)
+          && (!('itens' in d) || (d.itens is list && d.itens.size() >= 1 && d.itens.size() <= 40));
       }
 
       allow read, delete: if logado();

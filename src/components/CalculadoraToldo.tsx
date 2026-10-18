@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LuChevronRight, LuClipboardList, LuMinus, LuPlus, LuRuler } from "react-icons/lu";
+import { LuCheck, LuChevronRight, LuClipboardList, LuMinus, LuPlus, LuRuler, LuX } from "react-icons/lu";
 import { Cabecalho } from "@/components/Cabecalho";
 import { DesenhoCaderno } from "@/components/DesenhoCaderno";
 import { DesenhoCasca } from "@/components/DesenhoCasca";
@@ -22,10 +21,9 @@ import {
   type Modelo,
 } from "@/lib/calc/cortina";
 import { ROLO_CRISTAL_CM, VISOR_EMENDA_BAIXO, VISOR_EMENDA_CIMA, VISOR_PADRAO, VISOR_SOMA_LARGURA } from "@/lib/calc/visor";
-import { calculosRepo, type CalculoSalvo } from "@/lib/data/calculos";
-import { CHAVE_ABRIR, salvarServico } from "@/lib/data/servicos";
-import { mensagemErroBanco } from "@/lib/firebase";
-import { centavosParaTexto, formatBRL, formatM, formatMetros, formatNum, parseValor } from "@/lib/format";
+import type { EntradaCortina } from "@/lib/calc/cortina";
+import { formatM, formatMetros, formatNum, parseValor } from "@/lib/format";
+import { useMontagem } from "@/lib/montagem";
 
 function lerRoloSalvo() {
   try {
@@ -104,10 +102,11 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
   const [usarRetalho, setUsarRetalho] = useState(false);
   const [retalhoLarg, setRetalhoLarg] = useState("");
   const [retalhoComp, setRetalhoComp] = useState("");
-  const [cliente, setCliente] = useState("");
-  const [valorCent, setValorCent] = useState(0);
-  const router = useRouter();
-  const [salvando, setSalvando] = useState(false);
+  const montagem = useMontagem();
+  // toldo do serviço em montagem aberto aqui para alterar
+  const itemEditando =
+    montagem.rascunho.itens.find((i) => i.id === montagem.editandoItem && i.tipo === modelo) ?? null;
+  const numeroEditando = itemEditando ? montagem.rascunho.itens.indexOf(itemEditando) + 1 : 0;
 
   const entrada = useMemo(
     () => ({
@@ -170,26 +169,42 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
       />
     );
 
-  async function salvar() {
-    if (!r || valorCent <= 0) return;
-    setSalvando(true);
-    try {
-      const valor = valorCent / 100;
-      await salvarServico({ tipo: modelo, cliente, entrada, resultado: r, valor });
-      setCliente("");
-      setValorCent(0);
-      toast({
-        mensagem: `Serviço salvo. ${formatBRL(valor)} a receber`,
-        acao: { rotulo: "Ver", executar: () => router.push("/servicos") },
-      });
-    } catch (e) {
-      toast({ mensagem: `Não foi possível salvar. ${mensagemErroBanco(e)}` });
-    } finally {
-      setSalvando(false);
-    }
+  /** limpa as medidas para calcular o próximo toldo (mantém rolo, acabamento e moldura) */
+  function limparMedidas() {
+    setLargura("");
+    setAltura("");
+    setQuantidade(1);
+    setLatLarg("");
+    setLatAlt("");
+    setUsarRetalho(false);
+    setRetalhoLarg("");
+    setRetalhoComp("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function carregar(c: CalculoSalvo) {
+  function adicionarAoServico() {
+    if (!r) return;
+    if (itemEditando) {
+      montagem.atualizarItem({ id: itemEditando.id, tipo: modelo, entrada, resultado: r });
+      limparMedidas();
+      toast({ mensagem: `Toldo ${numeroEditando} atualizado`, acao: { rotulo: "Ver serviço", executar: montagem.abrirPainel } });
+      return;
+    }
+    const n = montagem.adicionar({ tipo: modelo, entrada, resultado: r });
+    limparMedidas();
+    toast({
+      mensagem: n === 1 ? "Toldo adicionado ao serviço" : `Toldo ${n} adicionado ao serviço`,
+      acao: { rotulo: "Ver serviço", executar: montagem.abrirPainel },
+    });
+  }
+
+  function cancelarEdicao() {
+    montagem.editarItem(null);
+    limparMedidas();
+  }
+
+  function carregar(e: EntradaCortina) {
+    const c = { entrada: e };
     setLargura(String(c.entrada.largura).replace(".", ","));
     setAltura(String(c.entrada.altura).replace(".", ","));
     setAcabamento(c.entrada.acabamento);
@@ -211,32 +226,15 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
       setVisLateral(String(c.entrada.visor.lateral).replace(".", ","));
       setVisRolo(String(c.entrada.visor.roloCristal).replace(".", ","));
     }
-    setCliente(c.cliente);
-    setValorCent(c.valor ? Math.round(c.valor * 100) : 0);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // abre um serviço escolhido na página Serviços
+  // abre aqui o toldo escolhido para alterar (no painel do serviço)
+  const idEditando = itemEditando?.id;
   useEffect(() => {
-    let id: string | null = null;
-    try {
-      id = sessionStorage.getItem(CHAVE_ABRIR);
-    } catch {
-      /* nada */
-    }
-    if (!id) return;
-    try {
-      sessionStorage.removeItem(CHAVE_ABRIR);
-    } catch {
-      /* nada */
-    }
-    // lê só esse serviço (1 leitura), sem carregar a lista toda
-    calculosRepo
-      .obter(id)
-      .then((c) => c && carregar(c))
-      .catch(() => {});
+    if (itemEditando) carregar(itemEditando.entrada);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [idEditando]);
 
   return (
     <>
@@ -687,37 +685,35 @@ export function CalculadoraToldo({ modelo }: { modelo: Modelo }) {
             </ol>
           </section>
 
-          <section className="cartao salvar">
-            <h2 className="titulo-secao">Salvar como serviço</h2>
-            <label className="campo">
-              <span>Cliente ou referência</span>
-              <input
-                value={cliente}
-                onChange={(e) => setCliente(e.target.value)}
-                placeholder="Ex.: Padaria Central"
-                maxLength={60}
-              />
-            </label>
-            <label className="campo campo-valor">
-              <span>Valor do serviço</span>
-              <div>
-                <em>R$</em>
-                <input
-                  inputMode="numeric"
-                  value={centavosParaTexto(valorCent)}
-                  onChange={(e) => setValorCent(Number(e.target.value.replace(/\D/g, "").slice(0, 11) || 0))}
-                  onFocus={(e) => {
-                    const el = e.target;
-                    requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
-                  }}
-                  aria-label="Valor do serviço em reais"
-                />
-              </div>
-            </label>
-            <p className="dica-salvar">Vai para Serviços e entra no Financeiro como <b>a receber</b>.</p>
-            <button type="button" className="botao-principal" onClick={salvar} disabled={salvando || valorCent <= 0}>
-              {salvando ? "Salvando…" : "Salvar serviço"}
-            </button>
+          <section className={`cartao adicionar${itemEditando ? " editando" : ""}`}>
+            {itemEditando ? (
+              <>
+                <h2 className="titulo-secao">Alterando o toldo {numeroEditando}</h2>
+                <p className="dica-salvar">As novas medidas substituem esse toldo no serviço.</p>
+                <button type="button" className="botao-principal" onClick={adicionarAoServico}>
+                  <LuCheck aria-hidden /> Salvar alterações do toldo {numeroEditando}
+                </button>
+                <button type="button" className="botao-secundario" onClick={cancelarEdicao}>
+                  <LuX aria-hidden /> Cancelar alteração
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="titulo-secao">
+                  {montagem.rascunho.itens.length > 0
+                    ? `Toldo ${montagem.rascunho.itens.length + 1} do serviço`
+                    : "Adicionar ao serviço"}
+                </h2>
+                <p className="dica-salvar">
+                  {montagem.rascunho.itens.length > 0
+                    ? "Junta este toldo aos que já estão no serviço. Cliente e valor vão no fim, para todos."
+                    : "Pode juntar outros toldos (de qualquer tipo e medida) no mesmo serviço. Cliente e valor vão no fim."}
+                </p>
+                <button type="button" className="botao-principal" onClick={adicionarAoServico}>
+                  <LuPlus aria-hidden /> Adicionar ao serviço
+                </button>
+              </>
+            )}
           </section>
         </>
       ) : (

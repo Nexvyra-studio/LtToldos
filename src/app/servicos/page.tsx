@@ -1,11 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import {
   LuCheck,
   LuClipboardList,
-  LuExternalLink,
+  LuPencil,
   LuRotateCcw,
   LuSearch,
   LuListFilter,
@@ -16,11 +15,12 @@ import { useConfirmar } from "@/components/Confirmar";
 import { Sheet } from "@/components/Sheet";
 import { useToast } from "@/components/Toast";
 import type { Modelo } from "@/lib/calc/cortina";
-import { statusDe, useCalculos, type CalculoSalvo } from "@/lib/data/calculos";
+import { cristalItem, itensDe, metrosItem, statusDe, useCalculos, type CalculoSalvo } from "@/lib/data/calculos";
+import { useMontagem } from "@/lib/montagem";
 import {
-  CHAVE_ABRIR,
   NOME_TIPO,
-  ROTA_TIPO,
+  nomeItem,
+  totalToldos,
   definirFinalizado,
   editarServico,
   excluirServico,
@@ -45,13 +45,14 @@ const filtrosIniciais = (): Filtros => ({
   busca: "",
 });
 
-const metrosDe = (c: CalculoSalvo) => c.resultado.metrosGeral ?? c.resultado.metrosRolo ?? c.resultado.metrosTotal;
+/** lona de todos os toldos do serviço */
+const metrosDe = (c: CalculoSalvo) => itensDe(c).reduce((s, i) => s + metrosItem(i), 0);
 const diaDe = (c: CalculoSalvo) => hojeISO(new Date(c.criadoEm));
 
 export default function ServicosPage() {
   const toast = useToast();
-  const router = useRouter();
   const confirmar = useConfirmar();
+  const montagem = useMontagem();
 
   // rascunho dos filtros: só vai ao banco quando toca em Buscar
   const [f, setF] = useState<Filtros>(filtrosIniciais);
@@ -76,7 +77,7 @@ export default function ServicosPage() {
       (c) =>
         (aplicado.situacao === "todos" ||
           (aplicado.situacao === "abertos" ? statusDe(c) === "aberto" : statusDe(c) === "finalizado")) &&
-        (aplicado.tipo === "todos" || c.tipo === aplicado.tipo) &&
+        (aplicado.tipo === "todos" || itensDe(c).some((i) => i.tipo === aplicado.tipo)) &&
         (!t || (c.cliente || "sem referência").toLowerCase().includes(t)),
     );
   }, [servicos, aplicado]);
@@ -142,13 +143,20 @@ export default function ServicosPage() {
     [toast, confirmar],
   );
 
-  function abrirCalculo(c: CalculoSalvo) {
-    try {
-      sessionStorage.setItem(CHAVE_ABRIR, c.id);
-    } catch {
-      /* nada */
+  /** leva o serviço para a montagem: dá para alterar, tirar ou juntar toldos */
+  async function editarToldos(c: CalculoSalvo) {
+    if (montagem.ativo && montagem.rascunho.servicoId !== c.id) {
+      const ok = await confirmar({
+        titulo: "Trocar o serviço em montagem?",
+        mensagem: "Já tem um serviço em montagem que ainda não foi salvo. Ele será descartado.",
+        confirmar: "Trocar",
+        tom: "neutro",
+      });
+      if (!ok) return;
     }
-    router.push(ROTA_TIPO[c.tipo ?? "cortina"]);
+    if (montagem.rascunho.servicoId !== c.id) montagem.carregarServico(c);
+    setAberto(null);
+    montagem.abrirPainel();
   }
 
   async function excluir(c: CalculoSalvo) {
@@ -304,8 +312,17 @@ export default function ServicosPage() {
                     <em>{c.valor ? formatBRL(c.valor) : "sem valor"}</em>
                   </span>
                   <span className="servico-info">
-                    {NOME_TIPO[c.tipo ?? "cortina"]} {formatNum(c.entrada.largura)} × {formatNum(c.entrada.altura)}
-                    {c.entrada.quantidade > 1 && `, ${c.entrada.quantidade} toldos`}, {formatM(metrosDe(c))} de lona
+                    {itensDe(c).length === 1 ? (
+                      <>
+                        {NOME_TIPO[c.tipo ?? "cortina"]} {formatNum(c.entrada.largura)} × {formatNum(c.entrada.altura)}
+                        {c.entrada.quantidade > 1 && `, ${c.entrada.quantidade} toldos`}
+                      </>
+                    ) : (
+                      <>
+                        <b>{totalToldos(itensDe(c))} toldos:</b> {itensDe(c).map(nomeItem).join(" · ")}
+                      </>
+                    )}
+                    , {formatM(metrosDe(c))} de lona
                   </span>
                   <span className="servico-rodape">
                     <span className={fin ? "selo selo-ok" : "selo selo-aberto"}>
@@ -335,7 +352,7 @@ export default function ServicosPage() {
             key={aberto.id}
             c={aberto}
             onAlternar={() => alternar(aberto)}
-            onAbrir={() => abrirCalculo(aberto)}
+            onAbrir={() => editarToldos(aberto)}
             onExcluir={() => excluir(aberto)}
             onSalvar={async (d) => {
               await editarServico(aberto, d);
@@ -366,31 +383,41 @@ function DetalheServico({
   const [cent, setCent] = useState(c.valor ? Math.round(c.valor * 100) : 0);
   const fin = statusDe(c) === "finalizado";
   const mudou = cliente.trim() !== c.cliente || cent !== Math.round((c.valor ?? 0) * 100);
-  const r = c.resultado;
+  const itens = itensDe(c);
+  const cristal = itens.reduce((s, i) => s + cristalItem(i), 0);
 
   return (
     <div className="detalhe-servico">
-      <dl className="detalhe-medidas">
+      <ol className="itens-servico itens-detalhe">
+        {itens.map((i, idx) => (
+          <li key={i.id}>
+            <span className="item-num">{idx + 1}</span>
+            <span className="item-servico-textos">
+              <strong>{nomeItem(i)}</strong>
+              <small>
+                Corte {formatNum(i.resultado.larguraCorte)} × {formatNum(i.resultado.alturaCorte)} ·{" "}
+                {formatM(metrosItem(i))} de lona
+                {cristalItem(i) > 0 && ` · ${formatM(cristalItem(i))} de cristal`}
+              </small>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <dl className="totais-servico">
         <div>
-          <dt>Tipo</dt>
-          <dd>{NOME_TIPO[c.tipo ?? "cortina"]}</dd>
-        </div>
-        <div>
-          <dt>Medidas</dt>
-          <dd>
-            {formatNum(c.entrada.largura)} × {formatNum(c.entrada.altura)}
-          </dd>
-        </div>
-        <div>
-          <dt>Corte</dt>
-          <dd>
-            {formatNum(r.larguraCorte)} × {formatNum(r.alturaCorte)}
-          </dd>
+          <dt>Toldos</dt>
+          <dd>{totalToldos(itens)}</dd>
         </div>
         <div>
           <dt>Lona</dt>
           <dd>{formatM(metrosDe(c))}</dd>
         </div>
+        {cristal > 0 && (
+          <div>
+            <dt>Cristal</dt>
+            <dd>{formatM(cristal)}</dd>
+          </div>
+        )}
       </dl>
 
       <label className="campo">
@@ -432,7 +459,7 @@ function DetalheServico({
       </p>
 
       <button type="button" className="botao-secundario" onClick={onAbrir}>
-        <LuExternalLink aria-hidden /> Abrir cálculo
+        <LuPencil aria-hidden /> Editar toldos (alterar, tirar ou juntar)
       </button>
       <button type="button" className="botao-perigo" onClick={onExcluir}>
         <LuTrash2 aria-hidden /> Excluir serviço

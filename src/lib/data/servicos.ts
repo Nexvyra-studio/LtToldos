@@ -1,12 +1,12 @@
 "use client";
 
-import type { EntradaCortina, Modelo, ResultadoCortina } from "../calc/cortina";
+import type { Modelo } from "../calc/cortina";
 import { formatNum, hojeISO } from "../format";
-import { calculosRepo, type CalculoSalvo } from "./calculos";
+import { calculosRepo, itensDe, type CalculoSalvo, type ItemServico } from "./calculos";
 import { lancamentosRepo, type Lancamento } from "./lancamentos";
 
 /**
- * Serviço = cálculo de toldo salvo com cliente e valor.
+ * Serviço = um ou mais toldos calculados, com cliente e valor.
  * Ao salvar, cria no financeiro um lançamento "a receber".
  * Ao finalizar o serviço, o lançamento passa a "recebido" (e vice-versa).
  */
@@ -27,21 +27,30 @@ export const ROTA_TIPO: Record<Modelo, string> = {
   "fixo-lateral": "/toldos/fixo-lateral",
 };
 
-/** chave usada para abrir um serviço salvo na calculadora */
-export const CHAVE_ABRIR = "toldos:abrir-servico";
-
-export function descricaoServico(cliente: string, tipo: Modelo, entrada: Pick<EntradaCortina, "largura" | "altura">) {
-  const quem = cliente.trim() || "Sem referência";
-  return `${quem}: ${NOME_TIPO[tipo]} ${formatNum(entrada.largura)}×${formatNum(entrada.altura)}`.slice(0, 80);
+/** "Cortina 300×200" (+ "× 2" quando são vários iguais) */
+export function nomeItem(i: Pick<ItemServico, "tipo" | "entrada">) {
+  const q = i.entrada.quantidade > 1 ? ` × ${i.entrada.quantidade}` : "";
+  return `${NOME_TIPO[i.tipo] ?? "Toldo"} ${formatNum(i.entrada.largura)}×${formatNum(i.entrada.altura)}${q}`;
 }
 
-export async function salvarServico(d: {
-  tipo: Modelo;
-  cliente: string;
-  entrada: EntradaCortina;
-  resultado: ResultadoCortina;
-  valor: number;
-}) {
+/** quantidade de toldos somando o "+" de cada item */
+export const totalToldos = (itens: ItemServico[]) => itens.reduce((s, i) => s + Math.max(1, i.entrada.quantidade || 1), 0);
+
+export function descricaoServico(cliente: string, itens: ItemServico[]) {
+  const quem = cliente.trim() || "Sem referência";
+  const texto = itens.length === 1 ? nomeItem(itens[0]) : `${totalToldos(itens)} toldos (${itens.map(nomeItem).join(", ")})`;
+  const d = `${quem}: ${texto}`;
+  return d.length > 80 ? `${d.slice(0, 79)}…` : d;
+}
+
+/** campos do documento: o 1º toldo fica também em tipo/entrada/resultado (compatível com os antigos) */
+function camposItens(itens: ItemServico[]) {
+  const p = itens[0];
+  return { tipo: p.tipo, entrada: p.entrada, resultado: p.resultado, itens };
+}
+
+export async function salvarServico(d: { cliente: string; itens: ItemServico[]; valor: number }) {
+  if (d.itens.length === 0) throw new Error("Serviço sem toldos");
   const servicoId = calculosRepo.novoId();
   const lancamentoId = lancamentosRepo.novoId();
   const agora = Date.now();
@@ -49,7 +58,7 @@ export async function salvarServico(d: {
     {
       tipo: "receita",
       servicoId,
-      descricao: descricaoServico(d.cliente, d.tipo, d.entrada),
+      descricao: descricaoServico(d.cliente, d.itens),
       valor: d.valor,
       data: hojeISO(),
       pago: false,
@@ -60,10 +69,8 @@ export async function salvarServico(d: {
   );
   await calculosRepo.criar(
     {
-      tipo: d.tipo,
+      ...camposItens(d.itens),
       cliente: d.cliente.trim(),
-      entrada: d.entrada,
-      resultado: d.resultado,
       criadoEm: agora,
       valor: d.valor,
       status: "aberto",
@@ -96,7 +103,20 @@ export async function editarServico(c: CalculoSalvo, dados: { cliente: string; v
   await calculosRepo.atualizar(c.id, { cliente: dados.cliente.trim(), valor: dados.valor });
   if (c.lancamentoId) {
     await lancamentosRepo
-      .atualizar(c.lancamentoId, { valor: dados.valor, descricao: descricaoServico(dados.cliente, c.tipo, c.entrada) })
+      .atualizar(c.lancamentoId, { valor: dados.valor, descricao: descricaoServico(dados.cliente, itensDe(c)) })
+      .catch(() => {});
+  }
+}
+
+/** troca os toldos, o cliente e o valor de um serviço já salvo */
+export async function atualizarServico(id: string, d: { cliente: string; itens: ItemServico[]; valor: number }) {
+  if (d.itens.length === 0) throw new Error("Serviço sem toldos");
+  const atual = await calculosRepo.obter(id);
+  if (!atual) throw new Error("Serviço não encontrado");
+  await calculosRepo.atualizar(id, { ...camposItens(d.itens), cliente: d.cliente.trim(), valor: d.valor });
+  if (atual.lancamentoId) {
+    await lancamentosRepo
+      .atualizar(atual.lancamentoId, { valor: d.valor, descricao: descricaoServico(d.cliente, d.itens) })
       .catch(() => {});
   }
 }
