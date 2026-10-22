@@ -1,4 +1,4 @@
-import type { ResultadoVisor } from "@/lib/calc/visor";
+import { VISOR_EMENDA_BAIXO, VISOR_EMENDA_CIMA, type ResultadoVisor } from "@/lib/calc/visor";
 import { formatNum } from "@/lib/format";
 
 interface Props {
@@ -23,8 +23,8 @@ export function DesenhoVisor({ larguraCorte, alturaCorte, v, acabamento }: Props
   const sy = H / alturaCorte;
 
   const wLat = Math.max(10, v.lateral.largura * sx);
-  const hCima = Math.max(12, (v.faixaCima.altura - 3) * sy);
-  const hBaixo = Math.max(12, (v.faixaBaixo.altura - 4) * sy);
+  const hCima = Math.max(12, (v.faixaCima.altura - VISOR_EMENDA_CIMA) * sy);
+  const hBaixo = Math.max(12, (v.faixaBaixo.altura - VISOR_EMENDA_BAIXO) * sy);
   const xMeio = x0 + wLat;
   const wMeio = W - 2 * wLat;
   const yCristal = y0 + hCima;
@@ -68,10 +68,10 @@ export function DesenhoVisor({ larguraCorte, alturaCorte, v, acabamento }: Props
           {formatNum(v.lateral.largura)}
         </text>
         <text x={xMeio + wMeio / 2} y={y0 + hCima / 2 + 4} textAnchor="middle" className="d-texto-gomo">
-          {formatNum(v.faixaCima.altura - 3)} + 3
+          {formatNum(v.faixaCima.altura - VISOR_EMENDA_CIMA)} + {VISOR_EMENDA_CIMA}
         </text>
         <text x={xMeio + wMeio / 2} y={y0 + H - hBaixo / 2 + 4} textAnchor="middle" className="d-texto-gomo">
-          {formatNum(v.faixaBaixo.altura - 4)} + 4 · {acabamento.toLowerCase()}
+          {formatNum(v.faixaBaixo.altura - VISOR_EMENDA_BAIXO)} + {VISOR_EMENDA_BAIXO} · {acabamento.toLowerCase()}
         </text>
         <text x={xMeio + wMeio / 2} y={yCristal + hCristal / 2} textAnchor="middle" className="dv-texto-cristal">
           Cristal

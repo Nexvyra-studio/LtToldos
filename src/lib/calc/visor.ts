@@ -6,16 +6,16 @@
  *  - Altura de corte  = igual à cortina padrão: + 25 (bandô) ou + 15 (canhão)
  *
  * PROVISÓRIO (do desenho do colega, ainda a confirmar; dá para mudar na tela):
- *  - Moldura de lona: faixa de cima 30 cm + 3 de emenda no cristal,
- *    faixa de baixo 20 cm + 4 de emenda no cristal, laterais de 50 cm.
+ *  - Emendas no cristal (confirmado): faixa de cima + 7, faixa de baixo + 20. Rolo do cristal: 140.
+ *  - Moldura de lona: faixa de cima 30 cm, faixa de baixo 20 cm, laterais de 50 cm.
  *  - As laterais vão de cima a baixo e são soldadas; as faixas de cima e de baixo
  *    e o cristal ficam entre as laterais.
  *  - Cristal = largura entre as laterais × (altura de corte − faixa de cima − faixa de baixo).
  */
 
 export const VISOR_SOMA_LARGURA = 15;
-export const VISOR_EMENDA_CIMA = 3;
-export const VISOR_EMENDA_BAIXO = 4;
+export const VISOR_EMENDA_CIMA = 7;
+export const VISOR_EMENDA_BAIXO = 20;
 export const VISOR_PADRAO = { cima: 30, baixo: 20, lateral: 50 };
 export const ROLO_CRISTAL_CM = 140;
 

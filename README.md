@@ -33,7 +33,7 @@ dados ficam salvos só no navegador do aparelho.
 **Toldos** (tela inicial com os tipos; cada um tem sua calculadora)
 - **Toldo Cortina:** largura + 10 + 1 cm por emenda; altura + 25 (bandô) ou + 15 (canhão).
 - **Cortina com visor:** largura + 15 (10 + 2 + 3, fixos); altura igual à cortina. Moldura de lona (2 laterais
-  soldadas, faixa de cima + 3 e faixa de baixo + 4 emendadas no cristal) e cristal no meio. Medidas da moldura
+  soldadas, faixa de cima + 7 e faixa de baixo + 20 emendadas no cristal; rolo do cristal 140) e cristal no meio. Medidas da moldura
   provisórias (30 / 20 / 50), editáveis na tela e em `src/lib/calc/visor.ts`.
 - **Fixo (casca):** largura + 10 + 1 cm por emenda; altura (ferragem por cima da curva) + 30.
 - **Fixo (casca) com bandô:** igual à casca (altura + 30); a medida já inclui o bandô.
