@@ -211,11 +211,18 @@ export function acrescimoAltura(e: Pick<EntradaCortina, "modelo" | "acabamento">
   return ACRESCIMO_CASCA;
 }
 
-/** Cortina com visor: largura + 15 fixos, altura igual à cortina, moldura de lona + cristal */
+/** Cortina com visor: largura + 15 fixos; altura = faixa de cima + cristal + faixa de baixo */
 function calcularCortinaVisor(e: EntradaCortina, rolo: number, quantidade: number): ResultadoCortina {
   const larguraCorte = round1(e.largura + VISOR_SOMA_LARGURA);
-  const alturaCorte = round1(e.altura + ACRESCIMO_ALTURA[e.acabamento]);
-  const v = calcularVisor(larguraCorte, alturaCorte, rolo, e.visor ?? { ...VISOR_PADRAO, roloCristal: ROLO_CRISTAL_CM });
+  // "bando" = com bandô (baixo + 20); "canhao" = sem bandô (baixo + 10)
+  const v = calcularVisor(
+    larguraCorte,
+    e.altura,
+    e.acabamento !== "canhao",
+    rolo,
+    e.visor ?? { ...VISOR_PADRAO, roloCristal: ROLO_CRISTAL_CM },
+  );
+  const alturaCorte = v.alturaTotal;
   const metrosTotal = round2(v.metrosLona * quantidade);
   return {
     rolo,

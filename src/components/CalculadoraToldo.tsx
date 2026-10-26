@@ -20,7 +20,15 @@ import {
   type Acabamento,
   type Modelo,
 } from "@/lib/calc/cortina";
-import { ROLO_CRISTAL_CM, VISOR_EMENDA_BAIXO, VISOR_EMENDA_CIMA, VISOR_PADRAO, VISOR_SOMA_LARGURA } from "@/lib/calc/visor";
+import {
+  CRISTAL_MEIA_FAIXA,
+  ROLO_CRISTAL_CM,
+  VISOR_ALTURA_MINIMA,
+  VISOR_PADRAO,
+  VISOR_SOMA_BAIXO,
+  VISOR_SOMA_CIMA,
+  VISOR_SOMA_LARGURA,
+} from "@/lib/calc/visor";
 import type { EntradaCortina } from "@/lib/calc/cortina";
 import type { ItemServico } from "@/lib/data/calculos";
 import { centavosParaTexto, formatBRL, formatM, formatMetros, formatNum, parseValor } from "@/lib/format";
@@ -112,8 +120,6 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
   const [comBandoLat, setComBandoLat] = useState(false);
   const [latLarg, setLatLarg] = useState("");
   const [latAlt, setLatAlt] = useState("");
-  const [visCima, setVisCima] = useState(String(VISOR_PADRAO.cima));
-  const [visBaixo, setVisBaixo] = useState(String(VISOR_PADRAO.baixo));
   const [visLateral, setVisLateral] = useState(String(VISOR_PADRAO.lateral));
   const [visRolo, setVisRolo] = useState(String(ROLO_CRISTAL_CM));
   const [usarRetalho, setUsarRetalho] = useState(false);
@@ -151,15 +157,13 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
       ...(ehVisor
         ? {
             visor: {
-              cima: parseValor(visCima) || 0,
-              baixo: parseValor(visBaixo) || 0,
               lateral: parseValor(visLateral) || 0,
               roloCristal: parseValor(visRolo) || ROLO_CRISTAL_CM,
             },
           }
         : {}),
     }),
-    [largura, altura, acabamento, modelo, quantidade, rolo, usarRetalho, retalhoLarg, retalhoComp, comBandoLat, latLarg, latAlt, ehVisor, visCima, visBaixo, visLateral, visRolo],
+    [largura, altura, acabamento, modelo, quantidade, rolo, usarRetalho, retalhoLarg, retalhoComp, comBandoLat, latLarg, latAlt, ehVisor, visLateral, visRolo],
   );
   const r = useMemo(() => calcularCortina(entrada), [entrada]);
   const acrescimo = acrescimoAltura(entrada);
@@ -242,8 +246,6 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
     setLatLarg(c.entrada.lateral ? String(c.entrada.lateral.largura).replace(".", ",") : "");
     setLatAlt(c.entrada.lateral ? String(c.entrada.lateral.altura).replace(".", ",") : "");
     if (c.entrada.visor) {
-      setVisCima(String(c.entrada.visor.cima).replace(".", ","));
-      setVisBaixo(String(c.entrada.visor.baixo).replace(".", ","));
       setVisLateral(String(c.entrada.visor.lateral).replace(".", ","));
       setVisRolo(String(c.entrada.visor.roloCristal).replace(".", ","));
     }
@@ -337,8 +339,12 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                 className={acabamento === a ? "ativo" : undefined}
                 onClick={() => setAcabamento(a)}
               >
-                {NOME_ACABAMENTO[a]}
-                <small>+{ACRESCIMO_ALTURA[a]} cm</small>
+                {ehVisor ? (a === "bando" ? "Com bandô" : "Sem bandô") : NOME_ACABAMENTO[a]}
+                <small>
+                  {ehVisor
+                    ? `baixo +${a === "bando" ? VISOR_SOMA_BAIXO.comBando : VISOR_SOMA_BAIXO.semBando} cm`
+                    : `+${ACRESCIMO_ALTURA[a]} cm`}
+                </small>
               </button>
             ))}
           </div>
@@ -379,17 +385,31 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
 
         {ehVisor && (
           <div className="bloco-visor">
-            <span className="rolo-rotulo">Moldura de lona e cristal</span>
+            <span className="rolo-rotulo">Laterais e cristal</span>
             <div className="retalho-campos">
-              <CampoPequeno rotulo="Faixa de cima" valor={visCima} onChange={setVisCima} />
-              <CampoPequeno rotulo="Faixa de baixo" valor={visBaixo} onChange={setVisBaixo} />
               <CampoPequeno rotulo="Cada lateral" valor={visLateral} onChange={setVisLateral} />
-              <CampoPequeno rotulo="Rolo do cristal" valor={visRolo} onChange={setVisRolo} />
+              <CampoPequeno rotulo="Altura do cristal" valor={visRolo} onChange={setVisRolo} />
             </div>
-            <p className="nota-provisorio">
-              <b>Provisório:</b> medidas do desenho do colega, ainda a confirmar. A faixa de cima soma +
-              {VISOR_EMENDA_CIMA} e a de baixo +{VISOR_EMENDA_BAIXO} para emendar no cristal; as laterais são
-              soldadas.
+            {entrada.altura > 0 && entrada.altura < VISOR_ALTURA_MINIMA && (
+              <div className="aviso-visor" role="alert">
+                <strong>Confirme se pode ser usado tamanho abaixo de {VISOR_ALTURA_MINIMA}.</strong>
+                <span>
+                  Normalmente, em cortina baixa, usa meia faixa de cristal ({CRISTAL_MEIA_FAIXA} cm).
+                </span>
+                {parseValor(visRolo) === CRISTAL_MEIA_FAIXA ? (
+                  <button type="button" onClick={() => setVisRolo(String(ROLO_CRISTAL_CM))}>
+                    Voltar para cristal de {ROLO_CRISTAL_CM}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setVisRolo(String(CRISTAL_MEIA_FAIXA))}>
+                    Usar cristal de {CRISTAL_MEIA_FAIXA}
+                  </button>
+                )}
+              </div>
+            )}
+            <p className="dica-visor">
+              As faixas de cima e de baixo saem sozinhas: (altura − cristal) ÷ 2, + {VISOR_SOMA_CIMA} em cima e +{" "}
+              {acabamento === "bando" ? VISOR_SOMA_BAIXO.comBando : VISOR_SOMA_BAIXO.semBando} embaixo.
             </p>
           </div>
         )}
@@ -443,8 +463,8 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
               )}
               {vis && (
                 <p className="resultado-partes">
-                  de lona + {formatM(r.metrosCristalTotal ?? vis.metrosCristal)} de cristal (rolo de{" "}
-                  {formatMetros((parseValor(visRolo) || ROLO_CRISTAL_CM) / 100)} m)
+                  de lona + {formatM(r.metrosCristalTotal ?? vis.metrosCristal)} de cristal (altura{" "}
+                  {formatNum(vis.cristal.altura)})
                 </p>
               )}
               {vis ? (
@@ -460,6 +480,9 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
               </p>
               )}
               {vis?.aviso && <p className="resultado-aviso">{vis.aviso}</p>}
+              {vis && !vis.aviso && entrada.altura < VISOR_ALTURA_MINIMA && (
+                <p className="resultado-aviso">Altura abaixo de {VISOR_ALTURA_MINIMA}: confirme se pode ser usado.</p>
+              )}
             </div>
             {lat && <p className="resultado-sub resultado-sub-casca">Casca</p>}
             <dl className="resultado-medidas">
@@ -515,7 +538,7 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                   larguraCorte={r.larguraCorte}
                   alturaCorte={r.alturaCorte}
                   v={vis}
-                  acabamento={NOME_ACABAMENTO[acabamento]}
+                  acabamento={acabamento === "bando" ? "com bandô" : "sem bandô"}
                 />
               </section>
               <section className="cartao">
@@ -534,7 +557,7 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                       {formatNum(vis.faixaCima.largura)} × {formatNum(vis.faixaCima.altura)}
                     </b>
                     <small>
-                      {formatNum(vis.faixaCima.altura - VISOR_EMENDA_CIMA)} + {VISOR_EMENDA_CIMA} de emenda no cristal
+                      Metade da sobra {formatNum(vis.metade)} + {vis.somaCima}
                     </small>
                   </li>
                   <li>
@@ -543,7 +566,7 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                       {formatNum(vis.faixaBaixo.largura)} × {formatNum(vis.faixaBaixo.altura)}
                     </b>
                     <small>
-                      {formatNum(vis.faixaBaixo.altura - VISOR_EMENDA_BAIXO)} + {VISOR_EMENDA_BAIXO} de emenda no cristal ·
+                      Metade da sobra {formatNum(vis.metade)} + {vis.somaBaixo} ({acabamento === "bando" ? "com" : "sem"} bandô) ·
                       as duas faixas: {formatM(vis.metrosFaixas)} de rolo
                     </small>
                   </li>
@@ -554,7 +577,6 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                     </b>
                     <small>
                       {formatM(vis.metrosCristal)} do rolo de cristal
-                      {vis.emendasCristal > 0 && ` · ${vis.emendasCristal} ${vis.emendasCristal === 1 ? "emenda" : "emendas"} (maior que o rolo)`}
                     </small>
                   </li>
                 </ul>
@@ -605,12 +627,43 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                     <small>10 + 2 + 3, fixos</small>
                   </li>
                   <li>
+                    <span>Sobra</span>
+                    <span>
+                      {formatNum(entrada.altura)} − {formatNum(vis.cristal.altura)}
+                    </span>
+                    <b>{formatNum(vis.sobra)} cm</b>
+                    <small>Altura do toldo menos o cristal</small>
+                  </li>
+                  <li>
+                    <span>Metade</span>
+                    <span>{formatNum(vis.sobra)} ÷ 2</span>
+                    <b>{formatNum(vis.metade)} cm</b>
+                    <small>Vai para a faixa de cima e para a de baixo</small>
+                  </li>
+                  <li>
+                    <span>Cima</span>
+                    <span>
+                      {formatNum(vis.metade)} + {vis.somaCima}
+                    </span>
+                    <b>{formatNum(vis.faixaCima.altura)} cm</b>
+                    <small>Faixa de cima</small>
+                  </li>
+                  <li>
+                    <span>Baixo</span>
+                    <span>
+                      {formatNum(vis.metade)} + {vis.somaBaixo}
+                    </span>
+                    <b>{formatNum(vis.faixaBaixo.altura)} cm</b>
+                    <small>Faixa de baixo, {acabamento === "bando" ? "com" : "sem"} bandô</small>
+                  </li>
+                  <li>
                     <span>Altura</span>
                     <span>
-                      {formatNum(entrada.altura)} + {acrescimo}
+                      {formatNum(vis.faixaCima.altura)} + {formatNum(vis.cristal.altura)} +{" "}
+                      {formatNum(vis.faixaBaixo.altura)}
                     </span>
                     <b>{formatNum(r.alturaCorte)} cm</b>
-                    <small>{nomeAcrescimo}</small>
+                    <small>Altura de corte (altura das laterais)</small>
                   </li>
                   <li>
                     <span>Meio</span>
@@ -619,15 +672,6 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                     </span>
                     <b>{formatNum(vis.larguraMeio)} cm</b>
                     <small>Largura das faixas e do cristal</small>
-                  </li>
-                  <li>
-                    <span>Cristal</span>
-                    <span>
-                      {formatNum(r.alturaCorte)} − {formatNum(vis.faixaCima.altura - VISOR_EMENDA_CIMA)} −{" "}
-                      {formatNum(vis.faixaBaixo.altura - VISOR_EMENDA_BAIXO)}
-                    </span>
-                    <b>{formatNum(vis.cristal.altura)} cm</b>
-                    <small>Altura do cristal</small>
                   </li>
                   <li>
                     <span>Lona</span>
