@@ -659,11 +659,14 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                   <li>
                     <span>Altura</span>
                     <span>
-                      {formatNum(vis.faixaCima.altura)} + {formatNum(vis.cristal.altura)} +{" "}
-                      {formatNum(vis.faixaBaixo.altura)}
+                      {formatNum(entrada.altura)} + {acrescimo}
                     </span>
                     <b>{formatNum(r.alturaCorte)} cm</b>
-                    <small>Altura de corte (altura das laterais)</small>
+                    <small>
+                      Altura de corte e das laterais ({acabamento === "bando" ? "com" : "sem"} bandô). Faixas + cristal ={" "}
+                      {formatNum(vis.alturaPecas)}: os {formatNum(vis.alturaPecas - r.alturaCorte)} cm a mais são das
+                      emendas
+                    </small>
                   </li>
                   <li>
                     <span>Meio</span>

@@ -217,6 +217,7 @@ function calcularCortinaVisor(e: EntradaCortina, rolo: number, quantidade: numbe
   // "bando" = com bandô (baixo + 20); "canhao" = sem bandô (baixo + 10)
   const v = calcularVisor(
     larguraCorte,
+    round1(e.altura + ACRESCIMO_ALTURA[e.acabamento]),
     e.altura,
     e.acabamento !== "canhao",
     rolo,

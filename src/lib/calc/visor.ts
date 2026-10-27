@@ -7,6 +7,8 @@
  *  - Sobra = altura do toldo − cristal; metade = sobra ÷ 2
  *  - Faixa de cima  = metade + 7
  *  - Faixa de baixo = metade + 20 (com bandô) ou metade + 10 (sem bandô)
+ *  - Altura de corte (e das 2 laterais) = igual à cortina: altura + 25 (bandô) ou + 15 (sem bandô).
+ *    Os 2 cm a mais das emendas (7 + 20 = 27) só entram nas faixas, não nas laterais.
  *  - 2 laterais de lona (50 cm, editável) de cima a baixo, soldadas; as faixas e o cristal
  *    ficam entre as laterais.
  *
@@ -53,8 +55,10 @@ export interface ResultadoVisor {
   metade: number;
   somaCima: number;
   somaBaixo: number;
-  /** altura total de corte: faixa de cima + cristal + faixa de baixo */
+  /** altura de corte = altura das laterais (altura + 25 com bandô, + 15 sem) */
   alturaTotal: number;
+  /** faixa de cima + cristal + faixa de baixo (inclui as sobras das emendas) */
+  alturaPecas: number;
   /** largura entre as laterais (faixas e cristal) */
   larguraMeio: number;
   metrosLaterais: number;
@@ -69,12 +73,14 @@ export interface ResultadoVisor {
 
 /**
  * @param larguraCorte largura já com os + 15
+ * @param alturaCorte altura já com os + 25 (bandô) ou + 15 (sem bandô): altura das laterais
  * @param altura altura do toldo (a medida digitada)
  * @param comBando com bandô soma 20 embaixo; sem bandô, 10
  * @param rolo largura do rolo de lona
  */
 export function calcularVisor(
   larguraCorte: number,
+  alturaCorte: number,
   altura: number,
   comBando: boolean,
   rolo: number,
@@ -89,7 +95,8 @@ export function calcularVisor(
   const somaBaixo = comBando ? VISOR_SOMA_BAIXO.comBando : VISOR_SOMA_BAIXO.semBando;
   const hCima = r1(metade + somaCima);
   const hBaixo = r1(metade + somaBaixo);
-  const alturaTotal = r1(hCima + hCristal + hBaixo);
+  const alturaPecas = r1(hCima + hCristal + hBaixo);
+  const alturaTotal = r1(alturaCorte);
   const larguraMeio = r1(larguraCorte - 2 * lateral);
 
   let aviso: string | null = null;
@@ -123,6 +130,7 @@ export function calcularVisor(
     somaCima,
     somaBaixo,
     alturaTotal,
+    alturaPecas,
     larguraMeio,
     metrosLaterais: r2(metrosLaterais),
     metrosFaixas: r2(metrosFaixas),

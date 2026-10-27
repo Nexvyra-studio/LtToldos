@@ -34,7 +34,8 @@ dados ficam salvos só no navegador do aparelho.
 - **Toldo Cortina:** largura + 10 + 1 cm por emenda; altura + 25 (bandô) ou + 15 (canhão).
 - **Cortina com visor:** largura + 15 (10 + 2 + 3, fixos). Cristal com a altura do rolo do cristal (140).
   Sobra = altura − 140; metade = sobra ÷ 2; faixa de cima = metade + 7; faixa de baixo = metade + 20 (com bandô)
-  ou + 10 (sem bandô). 2 laterais de lona (50, editável) de cima a baixo, soldadas.
+  ou + 10 (sem bandô). Altura de corte e das 2 laterais = altura + 25 (bandô) ou + 15 (sem bandô); os 2 cm a mais
+  das emendas só entram nas faixas. 2 laterais de lona (50, editável), soldadas. Abaixo de 200 de altura: aviso.
 - **Fixo (casca):** largura + 10 + 1 cm por emenda; altura (ferragem por cima da curva) + 30.
 - **Fixo (casca) com bandô:** igual à casca (altura + 30); a medida já inclui o bandô.
 - **Fixo com lateral:** casca + 2 laterais em faixas; lateral largura + 5 + 1 cm por emenda, altura + 5 (sem bandô) ou + 30 (com bandô).
