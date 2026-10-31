@@ -23,27 +23,21 @@ export const TIPOS_TOLDO: TipoToldo[] = [
     resumo: "Cortina com janela de cristal",
     regras: [
       "Largura + 15 cm (10 + 2 + 3, fixos)",
-      "Altura + 25 cm com bandô, ou + 15 cm com canhão",
-      "Moldura de lona e cristal (medidas provisórias)",
+      "Altura + 25 cm com bandô, ou + 15 cm sem bandô",
+      "Faixas: (altura − cristal) ÷ 2, + 7 em cima e + 20 ou + 10 embaixo",
     ],
     href: "/toldos/cortina-visor",
   },
   {
     id: "fixo-casca",
     nome: "Fixo (casca)",
-    resumo: "Estrutura fixa curva, sem bandô",
+    resumo: "Estrutura fixa curva, com ou sem bandô",
     regras: [
       "Largura + 10 cm + 1 cm por emenda",
       "Altura (ferragem por cima da curva) + 30 cm",
+      "Com bandô: a medida já inclui o bandô",
     ],
     href: "/toldos/casca",
-  },
-  {
-    id: "fixo-casca-bando",
-    nome: "Fixo (casca) com bandô",
-    resumo: "Estrutura fixa curva, bandô na frente",
-    regras: ["Largura + 10 cm + 1 cm por emenda", "Altura (ferragem por cima da curva) + 30 cm"],
-    href: "/toldos/casca-bando",
   },
   {
     id: "fixo-lateral",

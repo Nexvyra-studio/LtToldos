@@ -79,7 +79,10 @@ export default function ServicosPage() {
       (c) =>
         (aplicado.situacao === "todos" ||
           (aplicado.situacao === "abertos" ? statusDe(c) === "aberto" : statusDe(c) === "finalizado")) &&
-        (aplicado.tipo === "todos" || itensDe(c).some((i) => i.tipo === aplicado.tipo)) &&
+        (aplicado.tipo === "todos" ||
+          itensDe(c).some(
+            (i) => i.tipo === aplicado.tipo || (aplicado.tipo === "casca" && i.tipo === "casca-bando"),
+          )) &&
         (!t || (c.cliente || "sem referência").toLowerCase().includes(t)),
     );
   }, [servicos, aplicado]);
@@ -259,7 +262,7 @@ export default function ServicosPage() {
         </div>
 
         <div className="chips" role="radiogroup" aria-label="Tipo de toldo">
-          {(["todos", "cortina", "cortina-visor", "casca", "casca-bando", "fixo-lateral"] as const).map((t) => (
+          {(["todos", "cortina", "cortina-visor", "casca", "fixo-lateral"] as const).map((t) => (
             <button
               key={t}
               type="button"
@@ -268,7 +271,7 @@ export default function ServicosPage() {
               className={tipo === t ? "ativo" : undefined}
               onClick={() => muda("tipo", t)}
             >
-              {t === "todos" ? "Todos os tipos" : NOME_TIPO[t]}
+              {t === "todos" ? "Todos os tipos" : t === "casca" ? "Fixo (casca)" : NOME_TIPO[t]}
             </button>
           ))}
         </div>

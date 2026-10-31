@@ -65,7 +65,7 @@ const TEXTOS: Record<Modelo, { titulo: string; altura: string; vazio: string }> 
     vazio: "Digite a largura e a medida da ferragem por cima da curva, em centímetros.",
   },
   "casca-bando": {
-    titulo: "Casca com bandô",
+    titulo: "Fixo (Casca)",
     altura: "Altura (curva + bandô)",
     vazio: "Digite a largura e a medida por cima da curva já com o bandô, em centímetros.",
   },
@@ -87,7 +87,11 @@ interface Visualizar {
  * Tela de cálculo por faixas, usada por todos os tipos.
  * Com `visualizar`, mostra um toldo de um serviço salvo só para consulta (campos travados).
  */
-export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visualizar?: Visualizar }) {
+export function CalculadoraToldo({ modelo: modeloInicial, visualizar }: { modelo: Modelo; visualizar?: Visualizar }) {
+  // Fixo (casca): uma tela só; o botão Sem bandô / Com bandô troca entre "casca" e "casca-bando"
+  const [modelo, setModelo] = useState<Modelo>(modeloInicial);
+  useEffect(() => setModelo(modeloInicial), [modeloInicial]);
+  const ehCasca = modelo === "casca" || modelo === "casca-bando";
   const toast = useToast();
   const textos = TEXTOS[modelo];
   const ehVisor = modelo === "cortina-visor";
@@ -129,7 +133,11 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
   // toldo do serviço em montagem aberto aqui para alterar
   const itemEditando = visualizar
     ? null
-    : (montagem.rascunho.itens.find((i) => i.id === montagem.editandoItem && i.tipo === modelo) ?? null);
+    : (montagem.rascunho.itens.find(
+        (i) =>
+          i.id === montagem.editandoItem &&
+          (i.tipo === modelo || (ehCasca && (i.tipo === "casca" || i.tipo === "casca-bando"))),
+      ) ?? null);
   const numeroEditando = itemEditando ? montagem.rascunho.itens.indexOf(itemEditando) + 1 : 0;
   const [valorItemCent, setValorItemCent] = useState(0);
 
@@ -265,6 +273,7 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
   const idEditando = itemEditando?.id;
   useEffect(() => {
     if (itemEditando) {
+      setModelo(itemEditando.tipo);
       carregar(itemEditando.entrada);
       setValorItemCent(Math.round((itemEditando.valor ?? 0) * 100));
     }
@@ -361,6 +370,22 @@ export function CalculadoraToldo({ modelo, visualizar }: { modelo: Modelo; visua
                 >
                   {v ? "Com bandô" : "Sem bandô"}
                   <small>lateral +{v ? 30 : 5} cm</small>
+                </button>
+              ))}
+            </div>
+          ) : ehCasca ? (
+            <div className="segmentado" role="radiogroup" aria-label="Bandô">
+              {(["casca", "casca-bando"] as Modelo[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={modelo === m}
+                  className={modelo === m ? "ativo" : undefined}
+                  onClick={() => setModelo(m)}
+                >
+                  {m === "casca-bando" ? "Com bandô" : "Sem bandô"}
+                  <small>altura +{acrescimo} cm</small>
                 </button>
               ))}
             </div>

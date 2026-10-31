@@ -36,8 +36,9 @@ dados ficam salvos só no navegador do aparelho.
   Sobra = altura − 140; metade = sobra ÷ 2; faixa de cima = metade + 7; faixa de baixo = metade + 20 (com bandô)
   ou + 10 (sem bandô). Altura de corte e das 2 laterais = altura + 25 (bandô) ou + 15 (sem bandô); os 2 cm a mais
   das emendas só entram nas faixas. 2 laterais de lona (50, editável), soldadas. Abaixo de 200 de altura: aviso.
-- **Fixo (casca):** largura + 10 + 1 cm por emenda; altura (ferragem por cima da curva) + 30.
-- **Fixo (casca) com bandô:** igual à casca (altura + 30); a medida já inclui o bandô.
+- **Fixo (casca):** uma tela só, com o botão Sem bandô / Com bandô. Largura + 10 + 1 cm por emenda; altura
+  (ferragem por cima da curva) + 30. Com bandô, a medida já inclui o bandô. No banco continuam os tipos
+  `casca` e `casca-bando`.
 - **Fixo com lateral:** casca + 2 laterais em faixas; lateral largura + 5 + 1 cm por emenda, altura + 5 (sem bandô) ou + 30 (com bandô).
 - Em todos: largura do rolo livre, faixa cortada no meio, retalho opcional, desenho estilo caderno,
   plano de corte, conta passo a passo e cálculos salvos.
